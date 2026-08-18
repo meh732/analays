@@ -147,6 +147,21 @@ export function loadAllSettings() {
     if (fs.existsSync(storePath)) {
       const data = fs.readFileSync(storePath, "utf-8");
       settingsStore = JSON.parse(data);
+      
+      // Forcefully sanitize all existing chat watchlists on server load
+      for (const cid of Object.keys(settingsStore)) {
+        if (settingsStore[cid] && Array.isArray(settingsStore[cid].watchlist)) {
+          settingsStore[cid].watchlist = settingsStore[cid].watchlist.filter(
+            (s: string) => !['TSLA', 'NVDA', 'AAPL', 'MSFT'].includes(s.toUpperCase())
+          );
+        }
+      }
+      if (settingsStore.__global_config__?.autoHunter?.watchlist) {
+        settingsStore.__global_config__.autoHunter.watchlist = settingsStore.__global_config__.autoHunter.watchlist.filter(
+          (s: string) => !['TSLA', 'NVDA', 'AAPL', 'MSFT'].includes(s.toUpperCase())
+        );
+      }
+      saveAllSettings();
     }
   } catch (err) {
     console.error("Failed to load bot settings, starting fresh:", err);

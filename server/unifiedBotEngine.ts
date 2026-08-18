@@ -244,7 +244,7 @@ async function handleSymbolSearch(
   const { base, quote } = parseBaseAndQuote(clean);
 
   // If the user typed only the base asset name (e.g. BTC, XRP, SOL, DOGE, ETH, ADA) without a full pair, show unit picker first!
-  const isBaseOnly = clean === base && !['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'NVDA', 'TSLA', 'AAPL', 'MSFT'].includes(clean);
+  const isBaseOnly = clean === base && !['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY'].includes(clean);
   if (isBaseOnly && clean.length <= 6) {
     return showQuoteSelectionMenu(chatId, clean, botType, token, settings, mainReplyMenu);
   }
@@ -479,7 +479,7 @@ ${enableAi ? "🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلاد
       }
 
       if (data === "/search_prompt") {
-        await sendMessage(chatId.toString(), `🔍 **بخش جستجوی پیشرفته و افزودن دارایی خاص**\n\nبرای جستجوی زنده چارت، بررسی اندیکاتورها و افزودن نماد جدید به واچ‌لیست خود، نام نماد (ارزدیجیتال، فارکس یا سهام) را تایپ کرده و بفرستید.\n\n👉 **فرمت‌های نمونه:**\n• ارز دیجیتال: \`BTCUSDT\` یا \`SOLUSDT\`\n• جفت‌ارز فارکس: \`EURUSD\` یا \`GBPUSD\`\n• اونس جهانی طلا: \`XAUUSD\`\n• سهام بین‌المللی: \`NVDA\` یا \`TSLA\`\n\nهمچنین می‌توانید از دستور زیر استفاده کنید:\n\`/search [نام نماد]\``, {
+        await sendMessage(chatId.toString(), `🔍 **بخش جستجوی پیشرفته و افزودن دارایی خاص**\n\nبرای جستجوی زنده چارت، بررسی اندیکاتورها و افزودن نماد جدید به واچ‌لیست خود، نام نماد (ارزدیجیتال، فارکس یا طلا) را تایپ کرده و بفرستید.\n\n👉 **فرمت‌های نمونه:**\n• ارز دیجیتال: \`BTCUSDT\` یا \`SOLUSDT\`\n• جفت‌ارز فارکس: \`EURUSD\` یا \`GBPUSD\`\n• اونس جهانی طلا: \`XAUUSD\`\n\nهمچنین می‌توانید از دستور زیر استفاده کنید:\n\`/search [نام نماد]\``, {
           inlineKeyboard: [[{ text: "🔙 بازگشت به واچ‌لیست", callback_data: "/watchlist_menu" }]],
           replyKeyboard: mainReplyMenu,
         });
@@ -1334,7 +1334,7 @@ ${enableAi ? "🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلاد
             [
               { text: "🥇 GOLD", callback_data: "/add_wl_confirm XAUUSD" },
               { text: "💱 EURUSD", callback_data: "/add_wl_confirm EURUSD" },
-              { text: "📈 Tesla", callback_data: "/add_wl_confirm TSLA" }
+              { text: "🪙 SUI", callback_data: "/add_wl_confirm SUIUSDT" }
             ],
             [
               { text: "✏️ ورود دستی نام نماد دلخواه", callback_data: "/prompt_hunter_add" }
