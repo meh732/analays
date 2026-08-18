@@ -78,20 +78,26 @@ export default function App() {
   const [botPlatform, setBotPlatform] = useState<'telegram' | 'bale'>('telegram');
   const [botMessages, setBotMessages] = useState<BotMessage[]>([
     {
-      id: 'msg_welcome',
+      id: 'msg_start_rules',
       platform: 'telegram',
       sender: 'bot',
-      text: `👋 **سلام! به ربات تخصصی تحلیل تریدینگ‌ویو و فیوچرز خوش آمدید.**
+      text: `👋 **خوش آمدید به ربات تریدینگ‌ویو و دستیار هوشمند تحلیل بازار!**
 
-من چارت، اوردربلاک‌ها، نقدینگی، اندیکاتورها (RSI, MACD, EMAs) و پرایس‌اکشن تریدینگ‌ویو را بررسی می‌کنم و دقیق‌ترین نقطه ورود، ۳ تارگت حد سود، حد ضرر و لوریج مناسب را به شما می‌دهم.
+برای شروع و ورود به ربات، جهت شفافیت کامل در بازارهای مالی، لطفاً ابتدا قوانین و سلب مسئولیت حقوقی زیر را مطالعه فرموده و روی دکمه **«موافق قوانین هستم و می‌پذیرم»** کلیک کنید:
 
-🔹 برای شروع یکی از کلیدهای زیر را انتخاب کنید یا نام نماد مورد نظر را بفرستید:`,
+⚖️ **قوانین استفاده و سلب مسئولیت حقوقی:**
+۱. 👤 **مسئولیت ۱۰۰٪ با کاربر:** تمام ستاپ‌ها، نقاط ورود، استاپ‌لاس و تارگت‌ها جنبه محاسباتی و آموزشی داشته و مسئولیت هرگونه سود و زیان منحصراً بر عهده کاربر است.
+۲. 🚫 **عدم نفع سازنده:** توسعه‌دهنده هیچ دسترسی به حساب، ولت یا دارایی شما ندارد و هیچ درصدی از سود معاملات را دریافت نمی‌کند.
+۳. 🌍 **پوشش کلیه بازارها:** شامل کریپتو، فارکس، طلا، سهام و فیوچرز تریدینگ‌ویو.
+۴. 🛡️ **مدیریت سرمایه الزامی:** همواره با حد ضرر (Stop Loss) معامله کنید و بیش از ۱ تا ۳ درصد سرمایه را در یک پوزیشن ریسک نکنید.`,
       timestamp: Date.now(),
+      inlineKeyboard: [
+        [
+          { text: '✅ موافق قوانین هستم و می‌پذیرم', callback_data: '/accept_terms', style: 'success' },
+        ],
+      ],
       buttons: [
-        { text: '📊 تحلیل بیت‌کوین (BTC 15m)', callback_data: '/analyze BTCUSDT 15m' },
-        { text: '⚡ ستاپ اتریوم (ETH 15m)', callback_data: '/analyze ETHUSDT 15m' },
-        { text: '🚀 ستاپ سولانا (SOL 15m)', callback_data: '/analyze SOLUSDT 15m' },
-        { text: '🎯 اسکنر فرصت‌های سودآور', callback_data: '/scanner' },
+        { text: '✅ موافق قوانین هستم و می‌پذیرم', callback_data: '/accept_terms' },
       ],
     },
   ]);
@@ -181,6 +187,11 @@ export default function App() {
           const data = await res.json();
           if (data.success && data.config) {
             setBotConfig(data.config);
+            if (data.config.enableAiEngine === false && engineMode === 'ONLINE_AI') {
+              setEngineMode('OFFLINE_RULES');
+            } else if (data.config.enableOfflineEngine === false && engineMode === 'OFFLINE_RULES') {
+              setEngineMode('ONLINE_AI');
+            }
           }
         }
       } catch (err) {
@@ -502,6 +513,11 @@ export default function App() {
 
   const handleSaveConfig = async (newConfig: BotConfig) => {
     setBotConfig(newConfig);
+    if (newConfig.enableAiEngine === false && engineMode === 'ONLINE_AI') {
+      setEngineMode('OFFLINE_RULES');
+    } else if (newConfig.enableOfflineEngine === false && engineMode === 'OFFLINE_RULES') {
+      setEngineMode('ONLINE_AI');
+    }
     try {
       localStorage.setItem('tv_bot_config', JSON.stringify(newConfig));
       // Save globally to backend persistent store
@@ -839,31 +855,51 @@ export default function App() {
               <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
                 {/* Engine Mode Selector (Online AI vs Offline Knowledge) */}
                 <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-                  <button
-                    onClick={() => setEngineMode('ONLINE_AI')}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                      engineMode === 'ONLINE_AI'
-                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="تحلیل بلادرنگ هوش مصنوعی Gemini با بررسی همزمان اندیکاتورها و پرایس‌اکشن"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>🧠 هوش مصنوعی آنلاین</span>
-                  </button>
+                  {botConfig.enableAiEngine !== false ? (
+                    <button
+                      onClick={() => setEngineMode('ONLINE_AI')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                        engineMode === 'ONLINE_AI'
+                          ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="تحلیل بلادرنگ هوش مصنوعی Gemini با بررسی همزمان اندیکاتورها و پرایس‌اکشن"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>🧠 هوش مصنوعی آنلاین</span>
+                    </button>
+                  ) : (
+                    <div
+                      className="px-2.5 py-1.5 rounded-lg text-slate-600 text-[11px] flex items-center gap-1 cursor-not-allowed opacity-60"
+                      title="هوش مصنوعی توسط ادمین در تنظیمات غیرفعال شده است"
+                    >
+                      <Lock className="w-3 h-3" />
+                      <span>هوش مصنوعی (غیرفعال)</span>
+                    </div>
+                  )}
 
-                  <button
-                    onClick={() => setEngineMode('OFFLINE_RULES')}
-                    className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                      engineMode === 'OFFLINE_RULES'
-                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                    title="تحلیل بدون نیاز به API و بر اساس دانشنامه و قوانین پرایس‌اکشن، نقدینگی و SMC"
-                  >
-                    <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>📚 دانش و استراتژی آفلاین</span>
-                  </button>
+                  {botConfig.enableOfflineEngine !== false ? (
+                    <button
+                      onClick={() => setEngineMode('OFFLINE_RULES')}
+                      className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                        engineMode === 'OFFLINE_RULES'
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="تحلیل بدون استفاده از هوش مصنوعی با استخراج لحظه‌ای کندل‌ها، قیمت زنده و فرمول‌های ریاضی SMC"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>⚡ تحلیل آفلاین (دیتای زنده بدون AI)</span>
+                    </button>
+                  ) : (
+                    <div
+                      className="px-2.5 py-1.5 rounded-lg text-slate-600 text-[11px] flex items-center gap-1 cursor-not-allowed opacity-60"
+                      title="دانش آفلاین توسط ادمین در تنظیمات غیرفعال شده است"
+                    >
+                      <Lock className="w-3 h-3" />
+                      <span>دانش آفلاین (غیرفعال)</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Custom Symbol Input */}
@@ -1061,6 +1097,7 @@ export default function App() {
               isLoading={isBotThinking}
               onOpenConfig={() => setIsConfigOpen(true)}
               onOpenLegal={() => setIsLegalOpen(true)}
+              config={botConfig}
             />
           </div>
         )}

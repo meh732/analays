@@ -167,7 +167,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
           {isOffline ? (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold shadow-sm">
               <BookOpen className="w-3.5 h-3.5" />
-              <span>📚 موتور دانش آفلاین (SMC Rules)</span>
+              <span>⚡ تحلیل آفلاین (دیتای زنده / بدون AI)</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-bold shadow-sm">

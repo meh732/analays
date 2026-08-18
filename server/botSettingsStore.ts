@@ -15,6 +15,8 @@ export interface ChatSettings {
   leverage: number;
   tpStyle: 'tight_safe' | 'balanced' | 'extended_runner';
   minRRRatio: number;
+  termsAccepted?: boolean;
+  termsAcceptedAt?: number;
   history?: any[];
 }
 
@@ -26,6 +28,9 @@ export interface GlobalBotConfig {
   baleChatId: string;
   baleEnabled: boolean;
   autoBroadcast: boolean;
+  enableAiEngine?: boolean;
+  enableOfflineEngine?: boolean;
+  defaultEngineMode?: 'ONLINE_AI' | 'OFFLINE_RULES';
   defaultTimeframe: '1m' | '5m' | '15m' | '1h' | '4h' | '1D';
   defaultRiskPercent: number;
   riskSettings: {
@@ -59,6 +64,7 @@ const DEFAULT_SETTINGS: ChatSettings = {
   leverage: 15,
   tpStyle: 'balanced',
   minRRRatio: 2.5,
+  termsAccepted: false,
 };
 
 const DEFAULT_GLOBAL_CONFIG: GlobalBotConfig = {
@@ -69,6 +75,9 @@ const DEFAULT_GLOBAL_CONFIG: GlobalBotConfig = {
   baleChatId: process.env.BALE_CHAT_ID || "",
   baleEnabled: true,
   autoBroadcast: false,
+  enableAiEngine: true,
+  enableOfflineEngine: true,
+  defaultEngineMode: 'ONLINE_AI',
   defaultTimeframe: '15m',
   defaultRiskPercent: 2,
   riskSettings: {

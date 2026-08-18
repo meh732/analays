@@ -238,18 +238,23 @@ export function generateOfflineTradingSetup(
   });
 
   // 6. Educational Explanations (دانشنامه و آموزش متدولوژی)
-  const educationalFa = `📚 **دانش و منطق معاملاتی ستاپ (${action === "LONG" ? "خرید لانگ" : "فروش شورت"}):**
-تاریخ تحلیل: ${dateStr} (به وقت تهران)
-۱. **افق زمانی و ماندگاری در پوزیشن:** این ستاپ بر اساس تایم‌فریم ${tf} و افق ${timing.horizonLabelFa} طراحی شده است (مدت تخمینی نگهداری: ${timing.estimatedHoldingTimeFa}).
-۲. **هانت نقدینگی و ساختار اسمارت‌مانی (SMC):** قیمت با نزدیک شدن به اردربلاک ${isBullish ? "تقاضا (Demand OB)" : "عرضه (Supply OB)"}، استاپ‌های نقدینگی را جذب کرده و آماده حرکت پرقدرت است.
-۳. **ناحیه بهینه ورود فیبوناچی (OTE):** محدوده ورود در منطقه تعادلی و تلاقی با میانگین EMA20 قرار دارد.
-۴. **تاییدیه شاخص RSI (${rsi.toFixed(1)}):** وضعیت مومنتوم ${rsiCondition} است که ریسک به ریوارد 1:${rrRatio} را از لحاظ آماری تضمین می‌کند.
-۵. **مدیریت پوزیشن حرفه‌ای:** در TP1 نیمی از حجم بسته و استاپ به نقطه ورود (Breakeven) منتقل می‌شود تا معامله ۱۰۰٪ بدون ریسک (Risk-Free) ادامه یابد.`;
+  const candleCount = marketData.candles?.length || 50;
+  const fvgText = marketData.indicators.fvgDetected || "ناحیه تعادلی نقدینگی";
+  const obText = marketData.indicators.orderBlocks || `${isBullish ? "اردربلاک تقاضا" : "اردربلاک عرضه"}`;
+
+  const educationalFa = `📚 **دانش و منطق محاسباتی ستاپ آفلاین (${action === "LONG" ? "خرید لانگ" : "فروش شورت"}):**
+📅 تاریخ و ساعت استخراج زنده: ${dateStr} (به وقت تهران)
+⚡ **نوع موتور:** الگوریتم محاسباتی و ریاضی (بدون هوش مصنوعی / کاملاً بر اساس دیتای آنلاین کندل‌ها و قیمت لحظه‌ای)
+۱. **دیتا و کندل‌های پردازش‌شده:** ${candleCount} کندل زنده با حجم ۲۴ساعته ${marketData.volume24h} و تغییر روزانه ${marketData.change24h}%
+۲. **افق زمانی و ماندگاری در پوزیشن:** این ستاپ در تایم‌فریم ${tf} با افق ${timing.horizonLabelFa} محاسبه شده (مدت تخمینی نگهداری: ${timing.estimatedHoldingTimeFa}).
+۳. **ساختار اسمارت‌مانی و اردربلاک زنده:** ${obText} و ${fvgText}.
+۴. **شاخص‌های محاسباتی تکنیکال:** شاخص RSI در سطح ${rsi.toFixed(1)} (${rsiCondition}) و میانگین EMA20 برابر $${ema20} است.
+۵. **مدیریت سرمایه و ریسک‌فری:** در TP1 نیمی از حجم بسته و استاپ به نقطه ورود (Breakeven) منتقل می‌شود تا ریسک به صفر برسد.`;
 
   // 7. Telegram and Bale Formatted Messages
-  const telegramMessage = `🎯 **سیگنال تریدینگ‌ویو (موتور دانش و قوانین آفلاین)** 🎯
-📅 **زمان تحلیل:** ${dateStr} (به وقت تهران)
-📚 **حالت سیگنال‌دهی:** استراتژی آفلاین و قوانین پرایس‌اکشن (SMC)
+  const telegramMessage = `🎯 **سیگنال تریدینگ‌ویو (موتور آفلاین با دیتای زنده)** 🎯
+📅 **زمان استخراج زنده:** ${dateStr} (به وقت تهران)
+⚡ **حالت تحلیل:** محاسبات ریاضی و قوانین اسمارت‌مانی (بدون هوش مصنوعی)
 🔹 **نماد:** #${cleanSym} | تایم‌فریم: ${tf}
 ⏱️ **افق زمانی ورود و خروج:** ${timing.horizonLabelFa}
 ⚡ **جهت پوزیشن:** ${action === "LONG" ? "🟢 لانگ (LONG)" : "🔴 شورت (SHORT)"}
@@ -269,15 +274,17 @@ export function generateOfflineTradingSetup(
 💎 **نسبت ریسک به ریوارد (R:R):** 1:${rrRatio}
 💰 **مدیریت ریسک:** حداکثر ${req.riskSettings?.maxRiskPercent || 2}٪ از کل بالانس
   
-📖 **تحلیل و آموزش تکنیکال:**
+📖 **تحلیل تکنیکال استخراج‌شده از کندل‌ها:**
+• قیمت زنده: $${price} (دامنه ۲۴ساعته: $${marketData.low24h} تا $${marketData.high24h})
+• وضعیت پرایس‌اکشن: ${obText}
 ${appliedRules.map(r => `• ${r.nameFa}: ${r.explanationFa}`).join("\n")}
   
 ⚖️ *سلب مسئولیت: تصمیم نهایی معامله و مدیریت سرمایه با کاربر است و سازنده هیچ سهمی از سود معاملات ندارد.*
 🤖 *ربات تحلیلی تریدینگ‌ویو (تلگرام و بله)*`;
 
-  const baleMessage = `🔔 **سیگنال استراتژی آفلاین تریدینگ‌ویو (بله)**
-📅 **زمان تحلیل:** ${dateStr} (به وقت تهران)
-📚 متدولوژی: پرایس‌اکشن و اسمارت‌مانی (SMC Engine)
+  const baleMessage = `🔔 **سیگنال الگوریتمی تریدینگ‌ویو (بله)**
+📅 **زمان استخراج:** ${dateStr} (به وقت تهران)
+📚 متدولوژی: محاسبات پرایس‌اکشن و کندل‌استیک زنده (بدون هوش مصنوعی)
 جفت‌ارز: #${cleanSym} | تایم: ${tf} | افق زمانی: ${timing.horizonLabelFa}
 موقعیت: ${action === "LONG" ? "خرید لانگ (LONG)" : "فروش شورت (SHORT)"}
   
@@ -291,7 +298,7 @@ ${appliedRules.map(r => `• ${r.nameFa}: ${r.explanationFa}`).join("\n")}
 ▪️ لوریج پیشنهادی: ${levValue}x | نسبت R:R: 1:${rrRatio}
 ▪️ ابطال زمانی: ${timing.invalidationTimeoutFa}
   
-📌 *آموزش ستاپ:* ورود با تاییدیه اردربلاک نهادی. خروج پله‌ای و سیو سود در TP1 الزامی است.`;
+📌 *آموزش ستاپ:* ورود بر اساس فرمول‌های ریاضی و کندل‌های زنده مارکت. خروج پله‌ای و سیو سود در TP1 الزامی است.`;
 
   return {
     symbol: cleanSym,
@@ -347,7 +354,7 @@ ${appliedRules.map(r => `• ${r.nameFa}: ${r.explanationFa}`).join("\n")}
     leverageValue: levValue,
     riskRewardRatio: rrRatio,
     trend: isBullish ? "BULLISH" : "BEARISH",
-    analysisFa: `تحلیل آفلاین در تاریخ ${dateStr} (به وقت تهران) بر مبنای قوانین اسمارت‌مانی (SMC) با افق زمانی ${timing.horizonLabelFa}: قیمت در منطقه بهینه نقدینگی قرار گرفته و با تشکیل کندل تاییدیه بر روی میانگین متحرک، وارد موج شتاب‌دار شده است.`,
+    analysisFa: `تحلیل آفلاین در تاریخ ${dateStr} (به وقت تهران) بر پایه قوانین اسمارت‌مانی (SMC) و استخراج لحظه‌ای کندل‌ها: قیمت زنده ($${price}) در منطقه بهینه ورود (${obText}) قرار گرفته و شاخص RSI با سطح ${rsi.toFixed(1)} نشان‌دهنده تاییدیه ورود با نسبت R:R معادل 1:${rrRatio} است.`,
     analysisEn: `Quantitative rule-based analysis: Institutional Order Block retest on ${tf} with expected holding period of ${timing.estimatedHoldingTimeEn}.`,
     indicatorsSummary: {
       rsi,
@@ -356,7 +363,7 @@ ${appliedRules.map(r => `• ${r.nameFa}: ${r.explanationFa}`).join("\n")}
       emaTrend: isBullish ? "Above EMA 20 & EMA 50" : "Below EMA 20 & EMA 50",
       supportLevels: [sup1, sup2],
       resistanceLevels: [res1, res2],
-      orderBlocks: `${isBullish ? "Bullish" : "Bearish"} Institutional Block at $${isBullish ? sup1 : res1}`,
+      orderBlocks: obText,
     },
     strategyUsed: `SMC & Price Action (${timing.horizonLabelFa} - ${profileLabel})`,
     engineMode: "OFFLINE_RULES",

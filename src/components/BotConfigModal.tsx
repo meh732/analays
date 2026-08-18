@@ -17,6 +17,10 @@ import {
   Plus,
   Trash2,
   Lock,
+  Brain,
+  Layers,
+  Sparkles,
+  Cpu,
 } from 'lucide-react';
 
 interface BotConfigModalProps {
@@ -34,18 +38,54 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
   onSaveConfig,
   onTestConnection,
 }) => {
-  const [formData, setFormData] = useState<BotConfig>(config);
-  const [activeTab, setActiveTab] = useState<'risk' | 'auto_hunter' | 'telegram' | 'bale'>('risk');
+  const [formData, setFormData] = useState<BotConfig>({
+    ...config,
+    enableAiEngine: config.enableAiEngine !== undefined ? config.enableAiEngine : true,
+    enableOfflineEngine: config.enableOfflineEngine !== undefined ? config.enableOfflineEngine : true,
+    defaultEngineMode: config.defaultEngineMode || 'ONLINE_AI',
+  });
+  const [activeTab, setActiveTab] = useState<'engines' | 'risk' | 'auto_hunter' | 'telegram' | 'bale'>('engines');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [newSymbolInput, setNewSymbolInput] = useState('');
+  const [engineWarning, setEngineWarning] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const currentHost = typeof window !== 'undefined' ? window.location.origin : '';
   const telegramWebhookUrl = `${currentHost}/api/bot/webhook/telegram`;
   const baleWebhookUrl = `${currentHost}/api/bot/webhook/bale`;
+
+  const handleToggleAi = () => {
+    setEngineWarning(null);
+    const nextAiState = !formData.enableAiEngine;
+    if (!nextAiState && !formData.enableOfflineEngine) {
+      setEngineWarning('⚠️ حداقل یک موتور تحلیلی (هوش مصنوعی یا دانش آفلاین) باید فعال باشد.');
+      return;
+    }
+    const nextDefault = !nextAiState ? 'OFFLINE_RULES' : formData.defaultEngineMode;
+    setFormData({
+      ...formData,
+      enableAiEngine: nextAiState,
+      defaultEngineMode: nextDefault,
+    });
+  };
+
+  const handleToggleOffline = () => {
+    setEngineWarning(null);
+    const nextOfflineState = !formData.enableOfflineEngine;
+    if (!nextOfflineState && !formData.enableAiEngine) {
+      setEngineWarning('⚠️ حداقل یک موتور تحلیلی (هوش مصنوعی یا دانش آفلاین) باید فعال باشد.');
+      return;
+    }
+    const nextDefault = !nextOfflineState ? 'ONLINE_AI' : formData.defaultEngineMode;
+    setFormData({
+      ...formData,
+      enableOfflineEngine: nextOfflineState,
+      defaultEngineMode: nextDefault,
+    });
+  };
 
   const handleTest = async () => {
     const platform = activeTab === 'telegram' ? 'telegram' : 'bale';
@@ -133,10 +173,10 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-100 text-sm">
-                تنظیمات پیشرفته هوش مصنوعی، سوددهی، ریسک و ربات‌ها
+                تنظیمات ادمین و پیکربندی موتورهای هوش مصنوعی و ربات‌ها
               </h3>
               <p className="text-[11px] text-slate-400">
-                پیکربندی استراتژی سوددهی، شکارچی خودکار بازار و اتصال به تلگرام و بله
+                کنترل فعال/غیرفعال‌سازی هوش مصنوعی، دانش آفلاین، ریسک و اتصالات تلگرام و بله
               </p>
             </div>
           </div>
@@ -151,8 +191,21 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
         {/* Tab Selection */}
         <div className="flex border-b border-slate-800 bg-slate-950/40 text-xs overflow-x-auto scrollbar-none">
           <button
+            id="tab-engines-settings"
+            onClick={() => { setActiveTab('engines'); setTestResult(null); setEngineWarning(null); }}
+            className={`flex-1 py-3 px-3 font-bold transition-all flex items-center justify-center gap-1.5 border-b-2 whitespace-nowrap ${
+              activeTab === 'engines'
+                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Brain className="w-3.5 h-3.5 text-indigo-400" />
+            <span>موتورهای تحلیلی (AI و آفلاین)</span>
+          </button>
+
+          <button
             id="tab-risk-settings"
-            onClick={() => { setActiveTab('risk'); setTestResult(null); }}
+            onClick={() => { setActiveTab('risk'); setTestResult(null); setEngineWarning(null); }}
             className={`flex-1 py-3 px-3 font-bold transition-all flex items-center justify-center gap-1.5 border-b-2 whitespace-nowrap ${
               activeTab === 'risk'
                 ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10'
@@ -160,12 +213,12 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>تنظیم حالت سوددهی و ریسک</span>
+            <span>سوددهی و ریسک</span>
           </button>
 
           <button
             id="tab-auto-hunter"
-            onClick={() => { setActiveTab('auto_hunter'); setTestResult(null); }}
+            onClick={() => { setActiveTab('auto_hunter'); setTestResult(null); setEngineWarning(null); }}
             className={`flex-1 py-3 px-3 font-bold transition-all flex items-center justify-center gap-1.5 border-b-2 whitespace-nowrap ${
               activeTab === 'auto_hunter'
                 ? 'border-purple-500 text-purple-400 bg-purple-500/10'
@@ -173,12 +226,12 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
             }`}
           >
             <Radar className="w-3.5 h-3.5" />
-            <span>شکارچی خودکار و واچ‌لیست</span>
+            <span>شکارچی خودکار</span>
           </button>
 
           <button
             id="tab-telegram-bot"
-            onClick={() => { setActiveTab('telegram'); setTestResult(null); }}
+            onClick={() => { setActiveTab('telegram'); setTestResult(null); setEngineWarning(null); }}
             className={`flex-1 py-3 px-3 font-bold transition-all flex items-center justify-center gap-1.5 border-b-2 whitespace-nowrap ${
               activeTab === 'telegram'
                 ? 'border-sky-500 text-sky-400 bg-sky-500/10'
@@ -191,7 +244,7 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
 
           <button
             id="tab-bale-bot"
-            onClick={() => { setActiveTab('bale'); setTestResult(null); }}
+            onClick={() => { setActiveTab('bale'); setTestResult(null); setEngineWarning(null); }}
             className={`flex-1 py-3 px-3 font-bold transition-all flex items-center justify-center gap-1.5 border-b-2 whitespace-nowrap ${
               activeTab === 'bale'
                 ? 'border-emerald-600 text-emerald-300 bg-emerald-600/10'
@@ -205,6 +258,221 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
 
         {/* Body Content */}
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* 0. ENGINES MANAGEMENT TAB (AI VS OFFLINE) */}
+          {activeTab === 'engines' && (
+            <div className="space-y-4 text-xs">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-slate-200 flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-indigo-400" />
+                    مدیریت فعال‌سازی موتورهای تحلیل تکنیکال سیستم:
+                  </h4>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    کنترل دسترسی در وب، تلگرام و بله
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  می‌توانید هر یک از موتورهای تولید ستاپ معاملاتی را فعال یا غیرفعال کنید. اگر یکی از حالت‌ها خاموش شود، ربات‌ها و پنل به طور خودکار به حالت فعال دیگر سوییچ می‌کنند.
+                </p>
+
+                {engineWarning && (
+                  <div className="p-3 rounded-xl border bg-amber-500/15 border-amber-500/30 text-amber-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>{engineWarning}</span>
+                  </div>
+                )}
+
+                {/* Grid for Engine Toggles */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* AI Online Engine Card */}
+                  <div
+                    className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+                      formData.enableAiEngine
+                        ? 'bg-indigo-950/30 border-indigo-500/50 shadow-lg shadow-indigo-950/40'
+                        : 'bg-slate-950/60 border-slate-800 opacity-70'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${formData.enableAiEngine ? 'bg-indigo-500/20 text-indigo-400' : 'bg-slate-800 text-slate-500'}`}>
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-100 text-xs">🧠 هوش مصنوعی آنلاین</span>
+                            <p className="text-[10px] text-indigo-300">Gemini Pro/Flash Multimodal</p>
+                          </div>
+                        </div>
+
+                        {/* Toggle Switch */}
+                        <button
+                          type="button"
+                          id="toggle-ai-engine-btn"
+                          onClick={handleToggleAi}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            formData.enableAiEngine ? 'bg-indigo-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              formData.enableAiEngine ? 'translate-x-1' : 'translate-x-6'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        استفاده از هوش مصنوعی برای درک عمیق روند، سطوح عرضه/تقاضا، سنتیمنت بازار و نگارش گزارش تفسیری فارسی.
+                      </p>
+
+                      <ul className="mt-2.5 space-y-1 text-[10px] text-slate-400">
+                        <li className="flex items-center gap-1.5">
+                          <Check className="w-3 h-3 text-indigo-400" />
+                          بررسی زنده پرایس‌اکشن و کندل‌ها
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <Check className="w-3 h-3 text-indigo-400" />
+                          تولید تارگت‌های چندمرحله‌ای TP1 تا TP3
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">وضعیت در سیستم:</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${formData.enableAiEngine ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                        {formData.enableAiEngine ? '🟢 فعال و در دسترس' : '🔴 غیرفعال'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Offline Knowledge SMC Engine Card */}
+                  <div
+                    className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+                      formData.enableOfflineEngine
+                        ? 'bg-cyan-950/30 border-cyan-500/50 shadow-lg shadow-cyan-950/40'
+                        : 'bg-slate-950/60 border-slate-800 opacity-70'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${formData.enableOfflineEngine ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>
+                            <Layers className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-100 text-xs">📚 دانش و استراتژی آفلاین</span>
+                            <p className="text-[10px] text-cyan-300">SMC & Price Action Engine</p>
+                          </div>
+                        </div>
+
+                        {/* Toggle Switch */}
+                        <button
+                          type="button"
+                          id="toggle-offline-engine-btn"
+                          onClick={handleToggleOffline}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                            formData.enableOfflineEngine ? 'bg-cyan-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              formData.enableOfflineEngine ? 'translate-x-1' : 'translate-x-6'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        محاسبه بلادرنگ ستاپ معاملاتی با فرمول‌های ریاضی قطعی، قوانین اسمارت‌مانی (SMC)، اردربلاک و نقدینگی بدون وابستگی به مدل‌های زبانی هوش مصنوعی.
+                      </p>
+
+                      <ul className="mt-2.5 space-y-1 text-[10px] text-slate-400">
+                        <li className="flex items-center gap-1.5">
+                          <Check className="w-3 h-3 text-cyan-400" />
+                          شناسایی اردربلاک (OB) و گپ‌های ارزش منصفانه (FVG)
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <Check className="w-3 h-3 text-cyan-400" />
+                          محاسبه سطوح فیبوناچی ۰.۶۱۸ و ۰.۷۸۶
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">وضعیت در سیستم:</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${formData.enableOfflineEngine ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                        {formData.enableOfflineEngine ? '🟢 فعال و در دسترس' : '🔴 غیرفعال'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Default Engine Mode Selection */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                <h4 className="font-bold text-slate-200 flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-emerald-400" />
+                  موتور پیش‌فرض تولید ستاپ و تحلیل (Default System Engine):
+                </h4>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  هنگامی که کاربر در تلگرام، بله یا پنل، دستوری بدون ذکر مدل تحلیلی ارسال می‌کند، سیستم به صورت پیش‌فرض از این موتور استفاده خواهد کرد:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <div
+                    onClick={() => {
+                      if (formData.enableAiEngine) {
+                        setFormData({ ...formData, defaultEngineMode: 'ONLINE_AI' });
+                      }
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      !formData.enableAiEngine
+                        ? 'opacity-40 cursor-not-allowed bg-slate-900/50 border-slate-800'
+                        : formData.defaultEngineMode === 'ONLINE_AI'
+                        ? 'bg-indigo-500/15 border-indigo-500 text-indigo-200 shadow-md shadow-indigo-950'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-xs text-indigo-300">🧠 هوش مصنوعی آنلاین (Online AI)</span>
+                      {formData.defaultEngineMode === 'ONLINE_AI' && formData.enableAiEngine && (
+                        <Check className="w-3.5 h-3.5 text-indigo-400" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      تحلیل جامع مبتنی بر هوش مصنوعی Gemini و پرایس‌اکشن زنده
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      if (formData.enableOfflineEngine) {
+                        setFormData({ ...formData, defaultEngineMode: 'OFFLINE_RULES' });
+                      }
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      !formData.enableOfflineEngine
+                        ? 'opacity-40 cursor-not-allowed bg-slate-900/50 border-slate-800'
+                        : formData.defaultEngineMode === 'OFFLINE_RULES'
+                        ? 'bg-cyan-500/15 border-cyan-500 text-cyan-200 shadow-md shadow-cyan-950'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-xs text-cyan-300">📚 دانش و الگوریتم آفلاین (SMC)</span>
+                      {formData.defaultEngineMode === 'OFFLINE_RULES' && formData.enableOfflineEngine && (
+                        <Check className="w-3.5 h-3.5 text-cyan-400" />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      الگوریتم‌های ریاضی قطعی اسمارت‌مانی بدون استفاده از هوش مصنوعی
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 1. RISK & PROFIT MANAGEMENT TAB */}
           {activeTab === 'risk' && (
             <div className="space-y-4 text-xs">

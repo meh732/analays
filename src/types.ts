@@ -142,6 +142,8 @@ export interface BotConfig {
   baleChatId: string;
   baleEnabled: boolean;
   autoBroadcast: boolean;
+  enableAiEngine?: boolean;
+  enableOfflineEngine?: boolean;
   defaultEngineMode: SignalEngineMode;
   defaultTimeframe: Timeframe;
   defaultRiskPercent: number;

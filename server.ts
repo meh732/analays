@@ -68,7 +68,7 @@ async function startServer() {
         return res.status(400).json({ error: "Symbol is required" });
       }
 
-      const marketData = await fetchLiveMarketData(symbol);
+      const marketData = await fetchLiveMarketData(symbol, timeframe || "15m");
       const setup = await generateAITradingAnalysis(
         {
           symbol,
@@ -109,7 +109,7 @@ async function startServer() {
 
       const setups = await Promise.all(
         targetMarkets.map(async (m) => {
-          const marketData = await fetchLiveMarketData(m.symbol);
+          const marketData = await fetchLiveMarketData(m.symbol, timeframe || "15m");
           const setup = await generateAITradingAnalysis(
             {
               symbol: m.symbol,
@@ -148,7 +148,7 @@ async function startServer() {
       const discoveredSetups = await Promise.all(
         symbolsToScan.slice(0, 8).map(async (sym: string) => {
           try {
-            const marketData = await fetchLiveMarketData(sym);
+            const marketData = await fetchLiveMarketData(sym, timeframe || "15m");
             const setup = await generateAITradingAnalysis(
               {
                 symbol: sym,
