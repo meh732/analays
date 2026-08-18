@@ -35,7 +35,7 @@ tar -xzf "${BACKUP_FILE}" -C "${TEMP_DIR}"
 # Check and copy files back
 if [ -f "${TEMP_DIR}/.env" ]; then
     cp "${TEMP_DIR}/.env" "${PROJECT_DIR}/.env"
-    echo "✅ .env file restored."
+    echo "✅ .env configuration restored."
 fi
 
 if [ -f "${TEMP_DIR}/package.json" ]; then
@@ -59,20 +59,20 @@ TG_CHAT_ID="${TELEGRAM_CHAT_ID}"
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet tradingview-bot 2>/dev/null; then
     echo "🔄 Restarting tradingview-bot systemd service..."
     sudo systemctl restart tradingview-bot || systemctl restart tradingview-bot || true
-    echo "✅ Service restarted."
+    echo "✅ Service restarted successfully."
 fi
 
 # Send Telegram Confirmation
 if [ -n "${TG_TOKEN}" ] && [ -n "${TG_CHAT_ID}" ]; then
     HUMAN_DATE=$(date +"%Y-%m-%d %H:%M:%S")
     MSG=$(cat <<EOF
-♻️ *بازگردانی موفقیت‌آمیز سیستم از فایل بکاپ*
+♻️ *TradingView AI Bot - Restoration Successful*
 
-📅 *زمان:* ${HUMAN_DATE}
-🖥️ *سرور:* $(hostname)
-📦 *فایل بکاپ اعمال‌شده:* \`$(basename "${BACKUP_FILE}")\`
+📅 *Timestamp:* ${HUMAN_DATE}
+🖥️ *Host:* $(hostname)
+📦 *Restored Archive:* \`$(basename "${BACKUP_FILE}")\`
 
-✅ _تمامی متغیرهای محیطی و تنظیمات ربات با موفقیت بازیابی شدند و سرویس فعال است._
+✅ _System configuration and bot settings have been successfully restored and reloaded._
 EOF
 )
     curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
@@ -81,4 +81,4 @@ EOF
         -d "parse_mode=Markdown" >/dev/null 2>&1 || true
 fi
 
-echo "🎉 Restore completed successfully!"
+echo "🎉 Restoration completed successfully!"

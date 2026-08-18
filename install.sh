@@ -6,7 +6,7 @@
 
 set -e
 
-# ANSI Color Codes for Beautiful Terminal UI
+# ANSI Color Codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -17,12 +17,12 @@ WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Repository and Directory Setup
+# Repository and Directory Configuration
 REPO_URL="https://github.com/meh732/analays.git"
 DEFAULT_INSTALL_DIR="/opt/tradingview-bot"
 
-# Check if running in existing project or via curl pipe
-if [ -f "./package.json" ] && [ -f "./server.ts" ]; then
+# Robust directory detection
+if [ -f "$(pwd)/package.json" ] && [ -f "$(pwd)/server.ts" ]; then
     PROJECT_DIR="$(pwd)"
 elif [ -d "${DEFAULT_INSTALL_DIR}" ] && [ -f "${DEFAULT_INSTALL_DIR}/package.json" ]; then
     PROJECT_DIR="${DEFAULT_INSTALL_DIR}"
@@ -54,7 +54,7 @@ check_root_or_sudo() {
     fi
 }
 
-# Run command with sudo if needed
+# Run command with elevated permissions if needed
 run_elevated() {
     if [ "$EUID" -eq 0 ]; then
         "$@"
@@ -63,11 +63,10 @@ run_elevated() {
     fi
 }
 
-# Check Node.js and dependencies
+# Check and install system prerequisites
 check_and_install_dependencies() {
     echo -e "${BLUE}🔍 Checking system prerequisites...${NC}"
 
-    # Check curl, git, tar, gzip
     for pkg in curl git tar gzip; do
         if ! command -v $pkg >/dev/null 2>&1; then
             echo -e "${YELLOW}📦 Installing missing utility: $pkg...${NC}"
@@ -86,7 +85,7 @@ check_and_install_dependencies() {
     if command -v node >/dev/null 2>&1; then
         NODE_VER=$(node -v | tr -d 'v' | cut -d'.' -f1)
         if [ "$NODE_VER" -lt 18 ]; then
-            echo -e "${YELLOW}⚠️ Node.js version is older than 18 (current: $(node -v)). Upgrading...${NC}"
+            echo -e "${YELLOW}⚠️ Node.js version is older than 18 (current: $(node -v)). Upgrading to v20 LTS...${NC}"
             NEED_NODE_INSTALL=true
         else
             echo -e "${GREEN}✅ Node.js $(node -v) is installed.${NC}"
@@ -108,7 +107,7 @@ check_and_install_dependencies() {
             curl -fsSL https://rpm.nodesource.com/setup_20.x | run_elevated bash -
             run_elevated yum install -y nodejs
         else
-            echo -e "${RED}❌ Unable to automatically install Node.js on this OS. Please install Node.js 18+ manually.${NC}"
+            echo -e "${RED}❌ Unable to automatically install Node.js. Please install Node.js 18+ manually.${NC}"
             exit 1
         fi
     fi
@@ -116,7 +115,7 @@ check_and_install_dependencies() {
 
 # Setup or Edit .env configuration
 configure_environment() {
-    echo -e "\n${PURPLE}⚙️ پیکربندی متغیرهای محیطی، توکن‌ها و پورت سرور (.env):${NC}"
+    echo -e "\n${PURPLE}⚙️ Environment Variables, Tokens & Port Configuration (.env):${NC}"
     
     CURR_GEMINI=""
     CURR_TG_TOKEN=""
@@ -138,40 +137,40 @@ configure_environment() {
         CURR_PORT="${PORT:-3000}"
     fi
 
-    echo -e "${YELLOW}برای تایید یا حفظ مقدار پیش‌فرض/فعلی، کلید [Enter] را فشار دهید.${NC}\n"
+    echo -e "${YELLOW}Press [Enter] to keep current/default value.${NC}\n"
 
     echo -e "${CYAN}------------------------------------------------------------${NC}"
-    echo -e "${BOLD}${BLUE}🔵 ۱. اطلاعات و کلیدهای ربات تلگرام (Telegram Bot):${NC}"
+    echo -e "${BOLD}${BLUE}🔵 1. Telegram Bot Credentials:${NC}"
     echo -e "${CYAN}------------------------------------------------------------${NC}"
-    read -r -p "🔹 توکن اختصاصی ربات تلگرام (از BotFather@): [${CURR_TG_TOKEN:0:10}...]: " INPUT_TG_TOKEN
+    read -r -p "🔹 Telegram Bot Token (from @BotFather) [${CURR_TG_TOKEN:0:10}...]: " INPUT_TG_TOKEN
     TELEGRAM_BOT_TOKEN="${INPUT_TG_TOKEN:-$CURR_TG_TOKEN}"
 
-    read -r -p "🔹 آیدی عددی ادمین تلگرام (جهت دریافت بکاپ‌ها و مدیریت): [${CURR_TG_CHAT}]: " INPUT_TG_CHAT
+    read -r -p "🔹 Telegram Admin Chat ID (for backups & admin alerts) [${CURR_TG_CHAT}]: " INPUT_TG_CHAT
     TELEGRAM_CHAT_ID="${INPUT_TG_CHAT:-$CURR_TG_CHAT}"
 
     echo -e "\n${CYAN}------------------------------------------------------------${NC}"
-    echo -e "${BOLD}${GREEN}🟢 ۲. اطلاعات و کلیدهای پیام‌رسان بله (Bale Messenger):${NC}"
+    echo -e "${BOLD}${GREEN}🟢 2. Bale Messenger Credentials (Optional):${NC}"
     echo -e "${CYAN}------------------------------------------------------------${NC}"
-    read -r -p "🔹 توکن اختصاصی ربات بله (از BotFather در بله - اختیاری): [${CURR_BALE_TOKEN:0:10}...]: " INPUT_BALE_TOKEN
+    read -r -p "🔹 Bale Bot Token (from BotFather on Bale - optional) [${CURR_BALE_TOKEN:0:10}...]: " INPUT_BALE_TOKEN
     BALE_BOT_TOKEN="${INPUT_BALE_TOKEN:-$CURR_BALE_TOKEN}"
 
-    read -r -p "🔹 آیدی عددی ادمین / چت‌آیدی بله (جهت دریافت اعلان‌ها در بله - اختیاری): [${CURR_BALE_CHAT}]: " INPUT_BALE_CHAT
+    read -r -p "🔹 Bale Admin Chat ID (optional) [${CURR_BALE_CHAT}]: " INPUT_BALE_CHAT
     BALE_CHAT_ID="${INPUT_BALE_CHAT:-$CURR_BALE_CHAT}"
 
     echo -e "\n${CYAN}------------------------------------------------------------${NC}"
-    echo -e "${BOLD}${WHITE}🌐 ۳. تنظیمات پورت سرور و شبکه (Server Port):${NC}"
+    echo -e "${BOLD}${WHITE}🌐 3. Server Port & Network Settings:${NC}"
     echo -e "${CYAN}------------------------------------------------------------${NC}"
-    read -r -p "🔹 پورت اختصاصی سرور (پیش‌فرض: ۳۰۰۰): [${CURR_PORT}]: " INPUT_PORT
+    read -r -p "🔹 Dedicated Server Port [${CURR_PORT}]: " INPUT_PORT
     PORT="${INPUT_PORT:-$CURR_PORT}"
     if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
-        echo -e "${YELLOW}⚠️ پورت نامعتبر است؛ مقدار پیش‌فرض ۳۰۰۰ انتخاب شد.${NC}"
+        echo -e "${YELLOW}⚠️ Invalid port number; defaulting to 3000.${NC}"
         PORT=3000
     fi
 
     echo -e "\n${CYAN}------------------------------------------------------------${NC}"
-    echo -e "${BOLD}${PURPLE}🤖 ۴. کلید هوش مصنوعی جمینای (Gemini AI Key):${NC}"
+    echo -e "${BOLD}${PURPLE}🤖 4. AI Engine Credentials (Gemini API Key):${NC}"
     echo -e "${CYAN}------------------------------------------------------------${NC}"
-    read -r -p "🔹 کلید Gemini API Key (جهت تحلیل پرایس‌اکشن و فیوچرز): [${CURR_GEMINI:0:10}...]: " INPUT_GEMINI
+    read -r -p "🔹 Gemini API Key (for technical price-action & futures AI) [${CURR_GEMINI:0:10}...]: " INPUT_GEMINI
     GEMINI_API_KEY="${INPUT_GEMINI:-$CURR_GEMINI}"
 
     cat <<EOF > "${PROJECT_DIR}/.env"
@@ -190,10 +189,10 @@ GEMINI_API_KEY=${GEMINI_API_KEY}
 NODE_ENV=production
 EOF
 
-    echo -e "\n${GREEN}✅ تمامی متغیرهای محیطی با موفقیت در فایل .env ذخیره شدند.${NC}"
-    echo -e "${WHITE}  - پورت سرور: ${PORT}${NC}"
-    echo -e "${WHITE}  - چت‌آیدی تلگرام: ${TELEGRAM_CHAT_ID:-'(تنظیم نشده)'}${NC}"
-    echo -e "${WHITE}  - چت‌آیدی بله: ${BALE_CHAT_ID:-'(تنظیم نشده)'}${NC}"
+    echo -e "\n${GREEN}✅ Configuration successfully saved to .env file.${NC}"
+    echo -e "${WHITE}  - Server Port: ${PORT}${NC}"
+    echo -e "${WHITE}  - Telegram Chat ID: ${TELEGRAM_CHAT_ID:-'(Not configured)'}${NC}"
+    echo -e "${WHITE}  - Bale Chat ID: ${BALE_CHAT_ID:-'(Not configured)'}${NC}"
 }
 
 # Create and configure systemd service
@@ -251,28 +250,34 @@ configure_firewall() {
     fi
 }
 
-
 # Action 1: Install
 action_install() {
     echo -e "${GREEN}${BOLD}🚀 Starting Full Installation...${NC}\n"
     check_root_or_sudo
     check_and_install_dependencies
 
-    # Clone repository if needed
+    # Ensure parent directory exists
+    run_elevated mkdir -p "$(dirname "${PROJECT_DIR}")"
+
+    # Clone repository if package.json does not exist in target dir
     if [ ! -f "${PROJECT_DIR}/package.json" ]; then
-        echo -e "${BLUE}📥 Cloning repository from ${REPO_URL} to ${PROJECT_DIR}...${NC}"
-        run_elevated mkdir -p "${PROJECT_DIR}"
-        if [ "$EUID" -ne 0 ] && [ -n "$USER" ]; then
-            run_elevated chown -R "${USER}:${USER}" "${PROJECT_DIR}" 2>/dev/null || true
+        echo -e "${BLUE}📥 Cloning repository from ${REPO_URL} into ${PROJECT_DIR}...${NC}"
+        if [ -d "${PROJECT_DIR}" ]; then
+            run_elevated rm -rf "${PROJECT_DIR}"
         fi
-        git clone "${REPO_URL}" "${PROJECT_DIR}"
+        run_elevated git clone "${REPO_URL}" "${PROJECT_DIR}"
     fi
 
-    cd "${PROJECT_DIR}"
-    chmod +x "${PROJECT_DIR}/scripts/"*.sh 2>/dev/null || true
-    chmod +x "${PROJECT_DIR}/install.sh" 2>/dev/null || true
+    # Crucial: Change directory into project root
+    cd "${PROJECT_DIR}" || {
+        echo -e "${RED}❌ Error: Failed to navigate into ${PROJECT_DIR}${NC}"
+        exit 1
+    }
 
-    echo -e "\n${BLUE}📦 Installing npm dependencies...${NC}"
+    run_elevated chmod +x "${PROJECT_DIR}/scripts/"*.sh 2>/dev/null || true
+    run_elevated chmod +x "${PROJECT_DIR}/install.sh" 2>/dev/null || true
+
+    echo -e "\n${BLUE}📦 Installing npm dependencies in ${PROJECT_DIR}...${NC}"
     npm install
 
     configure_environment
@@ -283,44 +288,44 @@ action_install() {
     setup_systemd_service
     configure_firewall
 
-    # Create global CLI command (tvbot / analays)
+    # Create global CLI shortcuts (tvbot / analays)
     if [ -d "/usr/local/bin" ]; then
-        run_elevated ln -sf "${PROJECT_DIR}/install.sh" /usr/local/bin/tvbot
-        run_elevated ln -sf "${PROJECT_DIR}/install.sh" /usr/local/bin/analays
+        run_elevated ln -sf "${PROJECT_DIR}/install.sh" /usr/local/bin/tvbot 2>/dev/null || true
+        run_elevated ln -sf "${PROJECT_DIR}/install.sh" /usr/local/bin/analays 2>/dev/null || true
         run_elevated chmod +x /usr/local/bin/tvbot /usr/local/bin/analays 2>/dev/null || true
     fi
 
     # Send confirmation to Telegram Admin
     if [ -f "${PROJECT_DIR}/scripts/backup.sh" ]; then
-        bash "${PROJECT_DIR}/scripts/backup.sh" "نصب اولیه و راه‌اندازی موفقیت‌آمیز سرور"
+        bash "${PROJECT_DIR}/scripts/backup.sh" "Initial Installation & Setup Complete"
     fi
 
     TARGET_PORT="${PORT:-3000}"
     echo -e "\n${CYAN}======================================================${NC}"
-    echo -e "${GREEN}🎉 نصب با موفقیت کامل انجام شد!${NC}"
-    echo -e "${WHITE}آدرس سرور:${NC} http://localhost:${TARGET_PORT}"
-    echo -e "${WHITE}وضعیت سرویس:${NC} sudo systemctl status ${SERVICE_NAME}"
-    echo -e "${WHITE}دستور مدیریت آسان:${NC} ${YELLOW}tvbot${NC} یا ${YELLOW}analays${NC}"
+    echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
+    echo -e "${WHITE}Web Dashboard:${NC} http://localhost:${TARGET_PORT}"
+    echo -e "${WHITE}Service Status:${NC} sudo systemctl status ${SERVICE_NAME}"
+    echo -e "${WHITE}Global Shortcut:${NC} ${YELLOW}tvbot${NC} or ${YELLOW}analays${NC}"
     echo -e "${CYAN}======================================================${NC}"
 
-    read -r -p "آیا مایلید بکاپ خودکار دوره‌ای (مثلاً هر ۱۲ ساعت) فعال شود؟ (y/N): " SCHED_RESP
+    read -r -p "Would you like to schedule automatic periodic backups now? (y/N): " SCHED_RESP
     if [[ "$SCHED_RESP" =~ ^[Yy]$ ]]; then
         action_schedule_backup
     fi
 }
 
-
 # Action 2: Update (With Automatic Telegram Backup Before Update)
 action_update() {
     echo -e "${YELLOW}${BOLD}🔄 Starting Update Workflow...${NC}\n"
     check_root_or_sudo
+    cd "${PROJECT_DIR}" || exit 1
 
     # MANDATORY BACKUP BEFORE UPDATE
     echo -e "${PURPLE}📦 STEP 1: Creating automatic backup before update and sending to Admin Telegram...${NC}"
     if [ -f "${PROJECT_DIR}/scripts/backup.sh" ]; then
-        bash "${PROJECT_DIR}/scripts/backup.sh" "بکاپ خودکار قبل از اجرای آپدیت سرور"
+        bash "${PROJECT_DIR}/scripts/backup.sh" "Automatic Backup Before Server Update"
     else
-        echo -e "${YELLOW}⚠️ Backup script not found, proceeding with caution...${NC}"
+        echo -e "${YELLOW}⚠️ Backup script not found, proceeding with update...${NC}"
     fi
 
     # Pull git updates if git repo
@@ -329,7 +334,7 @@ action_update() {
         git pull || echo -e "${YELLOW}⚠️ Git pull skipped or encountered merge flags.${NC}"
     fi
 
-    echo -e "\n${BLUE}📦 STEP 3: Updating dependencies...${NC}"
+    echo -e "\n${BLUE}📦 STEP 3: Updating npm dependencies...${NC}"
     npm install
 
     echo -e "\n${BLUE}🏗️ STEP 4: Rebuilding production bundle...${NC}"
@@ -338,26 +343,27 @@ action_update() {
     echo -e "\n${BLUE}🔄 STEP 5: Restarting systemd service...${NC}"
     run_elevated systemctl restart "${SERVICE_NAME}"
 
-    echo -e "\n${GREEN}✅ آپدیت با موفقیت انجام شد و سرویس ری‌استارت گردید!${NC}"
-    echo -e "${WHITE}بکاپ کامل قبل از آپدیت به تلگرام ادمین ارسال شده است.${NC}"
+    echo -e "\n${GREEN}✅ Update completed successfully! Service has been restarted.${NC}"
+    echo -e "${WHITE}A full backup archive was dispatched to the Admin Telegram chat.${NC}"
 }
 
 # Action 3: Uninstall (With Final Emergency Backup to Telegram)
 action_uninstall() {
     echo -e "${RED}${BOLD}⚠️ Starting Uninstallation Workflow...${NC}\n"
     check_root_or_sudo
+    cd "${PROJECT_DIR}" || true
 
-    echo -e "${RED}هشدار: این عملیات سرویس ربات را متوقف، غیرفعال و از سرور حذف خواهد کرد.${NC}"
-    read -r -p "آیا از حذف ربات اطمینان کامل دارید؟ (yes/no): " CONFIRM
+    echo -e "${RED}Warning: This will stop, disable, and remove the bot service from the system.${NC}"
+    read -r -p "Are you sure you want to uninstall? (yes/no): " CONFIRM
     if [ "$CONFIRM" != "yes" ]; then
-        echo -e "${YELLOW}عملیات لغو شد.${NC}"
+        echo -e "${YELLOW}Uninstallation cancelled.${NC}"
         return
     fi
 
     # MANDATORY EMERGENCY BACKUP BEFORE UNINSTALL
     echo -e "\n${PURPLE}📦 STEP 1: Creating final emergency backup and sending to Admin Telegram...${NC}"
     if [ -f "${PROJECT_DIR}/scripts/backup.sh" ]; then
-        bash "${PROJECT_DIR}/scripts/backup.sh" "بکاپ اضطراری نهایی قبل از حذف کامل ربات"
+        bash "${PROJECT_DIR}/scripts/backup.sh" "Final Emergency Backup Before Uninstallation"
     fi
 
     echo -e "\n${BLUE}🛑 STEP 2: Stopping and disabling systemd service...${NC}"
@@ -376,44 +382,45 @@ action_uninstall() {
     fi
 
     echo -e "\n${CYAN}======================================================${NC}"
-    echo -e "${GREEN}✅ ربات با موفقیت از سیستم حذف شد.${NC}"
-    echo -e "${WHITE}آخرین بکاپ کامل قبل از حذف به تلگرام ادمین ارسال گردید.${NC}"
+    echo -e "${GREEN}✅ Bot service successfully removed from the system.${NC}"
+    echo -e "${WHITE}Final emergency backup archive was sent to Admin Telegram.${NC}"
     echo -e "${CYAN}======================================================${NC}"
 
-    read -r -p "آیا می‌خواهید فایل‌های پوشه پروژه نیز به طور کامل پاک شوند؟ (y/N): " RM_FILES
+    read -r -p "Would you also like to delete the project folder? (y/N): " RM_FILES
     if [[ "$RM_FILES" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}در حال پاکسازی پوشه پروژه...${NC}"
-        # Delete project files safely
-        rm -rf "${PROJECT_DIR}/dist" "${PROJECT_DIR}/node_modules"
-        echo -e "${GREEN}پوشه بیلد و ماژول‌ها پاکسازی شدند.${NC}"
+        echo -e "${YELLOW}Cleaning up project directory...${NC}"
+        rm -rf "${PROJECT_DIR}"
+        echo -e "${GREEN}Project folder completely removed.${NC}"
     fi
 }
 
 # Action 4: Manual Backup & Send to Telegram
 action_backup() {
-    echo -e "${PURPLE}${BOLD}📦 Manual Backup & Telegram Dispatch...${NC}\n"
-    read -r -p "توضیح/دلیل این بکاپ [بکاپ دستی کاربر]: " REASON_INPUT
-    REASON="${REASON_INPUT:-بکاپ دستی کاربر}"
+    echo -e "${PURPLE}${BOLD}📦 Manual Backup & Dispatch...${NC}\n"
+    cd "${PROJECT_DIR}" || exit 1
+    read -r -p "Backup description/reason [Manual Admin Backup]: " REASON_INPUT
+    REASON="${REASON_INPUT:-Manual Admin Backup}"
     bash "${PROJECT_DIR}/scripts/backup.sh" "${REASON}"
 }
 
 # Action 5: Restore from Backup
 action_restore() {
     echo -e "${CYAN}${BOLD}♻️ Restore from Backup Archive...${NC}\n"
+    cd "${PROJECT_DIR}" || exit 1
     BACKUP_DIR="${PROJECT_DIR}/backups"
 
     if [ ! -d "${BACKUP_DIR}" ] || [ -z "$(ls -A "${BACKUP_DIR}" 2>/dev/null)" ]; then
-        echo -e "${YELLOW}هیچ فایل بکاپی در پوشه backups یافت نشد.${NC}"
-        read -r -p "مسیر مستقیم فایل بکاپ (.tar.gz) را وارد کنید: " CUSTOM_PATH
+        echo -e "${YELLOW}No backup files found in ${BACKUP_DIR}.${NC}"
+        read -r -p "Enter direct path to backup archive (.tar.gz): " CUSTOM_PATH
         if [ -f "$CUSTOM_PATH" ]; then
             bash "${PROJECT_DIR}/scripts/restore.sh" "$CUSTOM_PATH"
         else
-            echo -e "${RED}❌ فایل پیدا نشد.${NC}"
+            echo -e "${RED}❌ File not found.${NC}"
         fi
         return
     fi
 
-    echo -e "${YELLOW}فایل‌های بکاپ موجود:${NC}"
+    echo -e "${YELLOW}Available Backup Archives:${NC}"
     mapfile -t BACKUP_FILES < <(ls -1t "${BACKUP_DIR}"/tv_bot_backup_*.tar.gz 2>/dev/null)
     
     for i in "${!BACKUP_FILES[@]}"; do
@@ -422,34 +429,34 @@ action_restore() {
         echo -e "  [$((i+1))] ${FNAME} (${FSIZE})"
     done
 
-    echo -e "  [0] وارد کردن مسیر فایل دلخواه"
+    echo -e "  [0] Specify custom file path"
     echo ""
-    read -r -p "شماره فایل مورد نظر برای بازگردانی: " CHOICE
+    read -r -p "Select backup file number to restore (0-${#BACKUP_FILES[@]}): " CHOICE
 
     if [ "$CHOICE" = "0" ]; then
-        read -r -p "مسیر فایل بکاپ: " CUSTOM_PATH
+        read -r -p "Enter backup archive path: " CUSTOM_PATH
         bash "${PROJECT_DIR}/scripts/restore.sh" "$CUSTOM_PATH"
     elif [ "$CHOICE" -ge 1 ] && [ "$CHOICE" -le "${#BACKUP_FILES[@]}" ]; then
         SELECTED_FILE="${BACKUP_FILES[$((CHOICE-1))]}"
         bash "${PROJECT_DIR}/scripts/restore.sh" "$SELECTED_FILE"
     else
-        echo -e "${RED}انتخاب نامعتبر.${NC}"
+        echo -e "${RED}Invalid selection.${NC}"
     fi
 }
 
 # Action 6: Schedule Automated Backups (Cron)
 action_schedule_backup() {
-    echo -e "${BLUE}${BOLD}⏰ زمان‌بندی ارسال خودکار بکاپ به تلگرام ادمین...${NC}\n"
-    echo -e "انتخاب بازه زمانی ارسال بکاپ:"
-    echo -e "  [1] هر ۱ ساعت یکبار"
-    echo -e "  [2] هر ۳ ساعت یکبار"
-    echo -e "  [3] هر ۶ ساعت یکبار (پیشنهادی)"
-    echo -e "  [4] هر ۱۲ ساعت یکبار"
-    echo -e "  [5] روزانه (ساعت ۰۰:۰۰ شب)"
-    echo -e "  [6] هفتگی (یکشنبه‌ها)"
-    echo -e "  [7] غیرفعال‌سازی زمان‌بندی بکاپ"
+    echo -e "${BLUE}${BOLD}⏰ Schedule Automated Backups to Telegram...${NC}\n"
+    echo -e "Select backup frequency:"
+    echo -e "  [1] Every 1 Hour"
+    echo -e "  [2] Every 3 Hours"
+    echo -e "  [3] Every 6 Hours (Recommended)"
+    echo -e "  [4] Every 12 Hours"
+    echo -e "  [5] Daily (Every 24 Hours at 00:00)"
+    echo -e "  [6] Weekly (Every Sunday at 00:00)"
+    echo -e "  [7] Disable Scheduled Backups"
     echo ""
-    read -r -p "انتخاب شما (1-7): " SCHED_OPT
+    read -r -p "Your choice (1-7): " SCHED_OPT
 
     case "$SCHED_OPT" in
         1) bash "${PROJECT_DIR}/scripts/schedule-backup.sh" 1 ;;
@@ -459,7 +466,7 @@ action_schedule_backup() {
         5) bash "${PROJECT_DIR}/scripts/schedule-backup.sh" 24 ;;
         6) bash "${PROJECT_DIR}/scripts/schedule-backup.sh" weekly ;;
         7) bash "${PROJECT_DIR}/scripts/schedule-backup.sh" disable ;;
-        *) echo -e "${RED}انتخاب نامعتبر.${NC}" ;;
+        *) echo -e "${RED}Invalid selection.${NC}" ;;
     esac
 }
 
@@ -467,8 +474,8 @@ action_schedule_backup() {
 action_status_logs() {
     echo -e "${BLUE}📊 Service Status:${NC}"
     run_elevated systemctl status "${SERVICE_NAME}" --no-pager || true
-    echo -e "\n${YELLOW}Press [Ctrl+C] to exit logs.${NC}"
-    read -r -p "آیا مایل به مشاهده لاگ‌های زنده (Live Logs) هستید؟ (y/N): " VIEW_LOGS
+    echo -e "\n${YELLOW}Press [Ctrl+C] to exit live logs.${NC}"
+    read -r -p "Would you like to view live streaming logs? (y/N): " VIEW_LOGS
     if [[ "$VIEW_LOGS" =~ ^[Yy]$ ]]; then
         run_elevated journalctl -u "${SERVICE_NAME}" -n 50 -f
     fi
@@ -485,18 +492,18 @@ action_restart() {
 interactive_menu() {
     while true; do
         show_banner
-        echo -e "${BOLD}${WHITE}لطفاً عملیات مورد نظر را انتخاب نمایید:${NC}\n"
-        echo -e "  ${GREEN}[1] 🚀 نصب کامل و راه‌اندازی ربات (Full Install)${NC}"
-        echo -e "  ${YELLOW}[2] 🔄 آپدیت ربات + بکاپ خودکار تلگرام (Update & Auto-Backup)${NC}"
-        echo -e "  ${RED}[3] ⚠️ حذف کامل ربات + آخرین بکاپ تلگرام (Uninstall & Emergency Backup)${NC}"
-        echo -e "  ${PURPLE}[4] 📦 تهیه بکاپ دستی و ارسال به تلگرام (Manual Backup)${NC}"
-        echo -e "  ${CYAN}[5] ♻️ بازگردانی سیستم از فایل بکاپ (Restore Backup)${NC}"
-        echo -e "  ${BLUE}[6] ⏰ زمان‌بندی ارسال خودکار بکاپ (Scheduled Auto-Backup)${NC}"
-        echo -e "  ${WHITE}[7] 📊 مشاهده وضعیت و لاگ‌ها (Status & Logs)${NC}"
-        echo -e "  ${WHITE}[8] 🔁 راه‌اندازی مجدد سرویس (Restart Service)${NC}"
-        echo -e "  ${RED}[0] 🚪 خروج (Exit)${NC}"
+        echo -e "${BOLD}${WHITE}Please select an action:${NC}\n"
+        echo -e "  ${GREEN}[1] 🚀 Full Install & Service Setup${NC}"
+        echo -e "  ${YELLOW}[2] 🔄 Update Bot (Auto-Backup to Telegram)${NC}"
+        echo -e "  ${RED}[3] ⚠️ Uninstall Bot (Emergency Backup to Telegram)${NC}"
+        echo -e "  ${PURPLE}[4] 📦 Manual Backup & Dispatch to Telegram${NC}"
+        echo -e "  ${CYAN}[5] ♻️ Restore System from Backup Archive${NC}"
+        echo -e "  ${BLUE}[6] ⏰ Schedule Automated Backups (Cron)${NC}"
+        echo -e "  ${WHITE}[7] 📊 View Service Status & Logs${NC}"
+        echo -e "  ${WHITE}[8] 🔁 Restart Service${NC}"
+        echo -e "  ${RED}[0] 🚪 Exit${NC}"
         echo ""
-        read -r -p "شماره گزینه را وارد کنید (0-8): " MENU_CHOICE
+        read -r -p "Enter choice (0-8): " MENU_CHOICE
 
         case "$MENU_CHOICE" in
             1) action_install ;;
@@ -507,12 +514,12 @@ interactive_menu() {
             6) action_schedule_backup ;;
             7) action_status_logs ;;
             8) action_restart ;;
-            0) echo -e "\n${GREEN}خداحافظ!${NC}\n"; exit 0 ;;
-            *) echo -e "\n${RED}گزینه نامعتبر است.${NC}\n" ;;
+            0) echo -e "\n${GREEN}Goodbye!${NC}\n"; exit 0 ;;
+            *) echo -e "\n${RED}Invalid option selected.${NC}\n" ;;
         esac
 
         echo ""
-        read -r -p "برای بازگشت به منوی اصلی [Enter] را بزنید..."
+        read -r -p "Press [Enter] to return to main menu..."
     done
 }
 

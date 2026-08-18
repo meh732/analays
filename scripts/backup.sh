@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# TradingView AI Bot - Dedicated Telegram Backup Script
-# Automatically creates compressed backup and sends to Admin Telegram
+# TradingView AI Bot - Dedicated Backup Script
+# Automatically creates compressed backup and sends to Admin Telegram & Bale
 # ==============================================================================
 
 set -e
@@ -23,7 +23,6 @@ REASON="${1:-Scheduled Automatic Backup}"
 
 # Load .env variables if present
 if [ -f "${PROJECT_DIR}/.env" ]; then
-    # Export without breaking on comments
     set -a
     # shellcheck disable=SC1091
     source "${PROJECT_DIR}/.env" 2>/dev/null || true
@@ -69,18 +68,18 @@ echo "✅ Backup archive created: ${BACKUP_PATH} (${BACKUP_SIZE})"
 
 # Send to Telegram Admin if token and chatId are available
 if [ -n "${TG_TOKEN}" ] && [ -n "${TG_CHAT_ID}" ]; then
-    echo "📤 Uploading backup document to Telegram Admin (${TG_CHAT_ID})..."
+    echo "📤 Uploading backup archive to Telegram Admin (${TG_CHAT_ID})..."
     
     CAPTION=$(cat <<EOF
-📦 *پشتیبان‌گیری خودکار سیستم تریدینگ‌ویو (Backup Archive)*
+📦 *TradingView AI Bot - System Backup Archive*
 
-🔹 *دلیل:* ${REASON}
-📅 *زمان:* ${HUMAN_DATE}
-🖥️ *سرور:* $(hostname)
-📦 *فایل:* \`${BACKUP_NAME}\` (${BACKUP_SIZE})
-⏱️ *آپ‌تایم سرور:* $(uptime -p 2>/dev/null || uptime)
+🔹 *Reason:* ${REASON}
+📅 *Timestamp:* ${HUMAN_DATE}
+🖥️ *Server Hostname:* $(hostname)
+📦 *File:* \`${BACKUP_NAME}\` (${BACKUP_SIZE})
+⏱️ *Uptime:* $(uptime -p 2>/dev/null || uptime)
 
-🔒 _این فایل شامل تنظیمات، متغیرهای محیطی و کلیدهای ربات است و برای بازیابی سریع استفاده می‌شود._
+🔒 _This archive contains environment variables, tokens, and bot settings for full system restoration._
 EOF
 )
 
@@ -91,29 +90,29 @@ EOF
         -F "parse_mode=Markdown")
 
     if echo "${SEND_RESULT}" | grep -q '"ok":true'; then
-        echo "✅ Backup successfully sent to Admin Telegram!"
+        echo "✅ Backup archive successfully delivered to Telegram Admin."
     else
-        echo "⚠️ Telegram upload error: ${SEND_RESULT}"
+        echo "⚠️ Telegram delivery error: ${SEND_RESULT}"
         # Fallback message
         curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d "chat_id=${TG_CHAT_ID}" \
-            -d "text=⚠️ بکاپ محلی ${BACKUP_NAME} ساخته شد اما ارسال فایل به تلگرام با خطا مواجه شد." >/dev/null 2>&1 || true
+            -d "text=⚠️ Local backup ${BACKUP_NAME} was created but delivery failed: ${SEND_RESULT}" >/dev/null 2>&1 || true
     fi
 else
-    echo "ℹ️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured in .env; backup stored locally."
+    echo "ℹ️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured; backup saved locally."
 fi
 
 # Send notification to Bale Admin if configured
 if [ -n "${BALE_TOKEN}" ] && [ -n "${BALE_CHAT}" ]; then
     echo "📤 Sending backup notification to Bale Admin (${BALE_CHAT})..."
     BALE_CLEAN_TOKEN="${BALE_TOKEN#bot}"
-    BALE_TEXT="📦 پشتیبان‌گیری سیستم تریدینگ‌ویو انجام شد.\n\n🔹 دلیل: ${REASON}\n📅 تاریخ: ${HUMAN_DATE}\n🖥️ سرور: $(hostname)\n📦 فایل: ${BACKUP_NAME} (${BACKUP_SIZE})\n✅ فایل کامل بکاپ به تلگرام ادمین ارسال گردید."
+    BALE_TEXT="📦 TradingView Bot Backup Notification\n\n🔹 Reason: ${REASON}\n📅 Date: ${HUMAN_DATE}\n🖥️ Host: $(hostname)\n📦 Archive: ${BACKUP_NAME} (${BACKUP_SIZE})\n✅ Backup archive has been generated and dispatched."
     curl -s -X POST "https://tapi.bale.ai/bot${BALE_CLEAN_TOKEN}/sendMessage" \
         -H "Content-Type: application/json" \
         -d "{\"chat_id\":\"${BALE_CHAT}\",\"text\":\"${BALE_TEXT}\"}" >/dev/null 2>&1 || true
 fi
 
-# Keep only the last 20 local backups to save disk space
+# Keep only the last 20 local backups to optimize disk storage
 find "${BACKUP_DIR}" -name "tv_bot_backup_*.tar.gz" -type f -mtime +15 -delete 2>/dev/null || true
 
-echo "🎉 Backup workflow finished successfully."
+echo "🎉 Backup process completed successfully."

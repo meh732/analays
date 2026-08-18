@@ -15,12 +15,12 @@ if [ -z "${INTERVAL}" ]; then
     echo "Examples:"
     echo "  $0 6          (Every 6 hours)"
     echo "  $0 12         (Every 12 hours)"
-    echo "  $0 24         (Once daily at 00:00)"
-    echo "  $0 disable    (Remove scheduled backup)"
+    echo "  $0 24         (Daily at 00:00)"
+    echo "  $0 disable    (Remove scheduled backup job)"
     exit 1
 fi
 
-CRON_CMD="${PROJECT_DIR}/scripts/backup.sh \"بکاپ خودکار دوره‌ای سیستم\" >/dev/null 2>&1"
+CRON_CMD="${PROJECT_DIR}/scripts/backup.sh \"Scheduled Automated Backup\" >/dev/null 2>&1"
 CURRENT_CRON=$(crontab -l 2>/dev/null || true)
 CLEANED_CRON=$(echo "${CURRENT_CRON}" | grep -v "scripts/backup.sh" || true)
 
@@ -33,43 +33,43 @@ fi
 case "${INTERVAL}" in
     1)
         CRON_SCHEDULE="0 * * * *"
-        DESC="هر ۱ ساعت یکبار"
+        DESC="Every 1 Hour"
         ;;
     3)
         CRON_SCHEDULE="0 */3 * * *"
-        DESC="هر ۳ ساعت یکبار"
+        DESC="Every 3 Hours"
         ;;
     6)
         CRON_SCHEDULE="0 */6 * * *"
-        DESC="هر ۶ ساعت یکبار"
+        DESC="Every 6 Hours"
         ;;
     12)
         CRON_SCHEDULE="0 */12 * * *"
-        DESC="هر ۱۲ ساعت یکبار"
+        DESC="Every 12 Hours"
         ;;
     24|daily)
         CRON_SCHEDULE="0 0 * * *"
-        DESC="هر ۲۴ ساعت (روزانه ساعت ۰۰:۰۰)"
+        DESC="Every 24 Hours (Daily at 00:00)"
         ;;
     weekly)
         CRON_SCHEDULE="0 0 * * 0"
-        DESC="هر هفته (یکشنبه‌ها ساعت ۰۰:۰۰)"
+        DESC="Every Week (Sundays at 00:00)"
         ;;
     *)
         CRON_SCHEDULE="${INTERVAL}"
-        DESC="برنامه سفارشی: ${INTERVAL}"
+        DESC="Custom Schedule: ${INTERVAL}"
         ;;
 esac
 
 NEW_CRON="${CLEANED_CRON}
 ${CRON_SCHEDULE} ${CRON_CMD}"
 
-# Remove leading empty lines
+# Remove empty lines
 NEW_CRON=$(echo "${NEW_CRON}" | sed '/^\s*$/d')
 
 echo "${NEW_CRON}" | crontab -
 
-echo "✅ زمان‌بندی بکاپ خودکار با موفقیت در کرون‌تب لینوکس ثبت شد!"
-echo "⏱️ بازه زمانی: ${DESC}"
-echo "📅 زمان‌بندی کرون: ${CRON_SCHEDULE}"
-echo "📤 هر بار بکاپ تهیه شده و مستقیماً به تلگرام ادمین ارسال خواهد شد."
+echo "✅ Automated backup schedule successfully configured in crontab!"
+echo "⏱️ Interval: ${DESC}"
+echo "📅 Cron Expression: ${CRON_SCHEDULE}"
+echo "📤 Backups will be automatically delivered to the Admin Telegram channel."
