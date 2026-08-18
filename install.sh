@@ -327,9 +327,16 @@ action_install() {
     # Ensure parent directory exists
     run_elevated mkdir -p "$(dirname "${PROJECT_DIR}")"
 
-    # Clone repository if package.json does not exist in target dir
-    if [ ! -f "${PROJECT_DIR}/package.json" ]; then
+    # Safely handle cloning / updating the repo
+    if [ -d "${PROJECT_DIR}/.git" ]; then
+        echo -e "${BLUE}📥 Updating existing repository in ${PROJECT_DIR}...${NC}"
+        cd "${PROJECT_DIR}"
+        git fetch origin || true
+        git reset --hard origin/main 2>/dev/null || git pull || true
+    elif [ ! -f "${PROJECT_DIR}/package.json" ]; then
         echo -e "${BLUE}📥 Cloning repository from ${REPO_URL} into ${PROJECT_DIR}...${NC}"
+        # Crucial: Step out of PROJECT_DIR before deleting it to avoid 'Unable to read current working directory'
+        cd /tmp
         if [ -d "${PROJECT_DIR}" ]; then
             run_elevated rm -rf "${PROJECT_DIR}"
         fi
