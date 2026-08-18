@@ -10,6 +10,11 @@ export interface ChatSettings {
   balance: number;
   watchlist: string[];
   autoHunterEnabled: boolean;
+  directionPreference: 'AUTO' | 'LONG' | 'SHORT';
+  timeHorizon: 'scalp_minutes' | 'intraday_hours' | 'swing_days';
+  leverage: number;
+  tpStyle: 'tight_safe' | 'balanced' | 'extended_runner';
+  minRRRatio: number;
 }
 
 export interface GlobalBotConfig {
@@ -48,6 +53,11 @@ const DEFAULT_SETTINGS: ChatSettings = {
   balance: 1000,
   watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'NVDA', 'TSLA', 'DOGEUSDT', 'EURUSD'],
   autoHunterEnabled: false,
+  directionPreference: 'AUTO',
+  timeHorizon: 'intraday_hours',
+  leverage: 15,
+  tpStyle: 'balanced',
+  minRRRatio: 2.5,
 };
 
 const DEFAULT_GLOBAL_CONFIG: GlobalBotConfig = {
