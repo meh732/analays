@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    border-color: rgba(51, 65, 85, 0.4);
+  }
+  
+  /* Custom sleek scrollbar for crypto terminal */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #020617;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+.mono-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}

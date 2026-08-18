@@ -1,0 +1,126 @@
+export type MarketCategory = 'crypto' | 'forex' | 'stocks' | 'commodities';
+
+export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1D';
+
+export type TradeAction = 'LONG' | 'SHORT' | 'WAIT';
+
+export type SetupGrade = 'A+' | 'A' | 'B';
+
+export type BotPlatform = 'telegram' | 'bale' | 'both';
+
+export type RiskProfileMode = 'conservative' | 'moderate' | 'aggressive';
+
+export interface RiskSettings {
+  profile: RiskProfileMode; // کم‌ریسک، متعادل، تهاجمی
+  maxRiskPercent: number; // مثلا ۱٪ تا ۵٪
+  maxLeverage: number; // مثلا 5x, 10x, 20x, 50x
+  minRRRatio: number; // مثلا 1:2.5
+  tpStyle: 'tight_safe' | 'balanced' | 'extended_runner';
+}
+
+export interface AutoHunterConfig {
+  enabled: boolean;
+  intervalMinutes: number; // بازه زمانی اسکن خودکار (مثلا ۱، ۳، ۵، ۱۵ دقیقه)
+  watchlist: string[]; // نمادهای تحت نظر
+  minGrade: SetupGrade;
+  autoBroadcastToTelegram: boolean;
+  autoBroadcastToBale: boolean;
+}
+
+export interface TakeProfitTarget {
+  target: number;
+  price: number;
+  pnlPercent: number;
+  sizePercent: number;
+  descriptionFa: string;
+  descriptionEn: string;
+}
+
+export interface StopLossConfig {
+  price: number;
+  lossPercent: number;
+  invalidationReasonFa: string;
+  invalidationReasonEn: string;
+}
+
+export interface TradeSetup {
+  id: string;
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  marketCategory: MarketCategory;
+  timeframe: Timeframe;
+  action: TradeAction;
+  grade: SetupGrade;
+  confidence: number;
+  currentPrice: number;
+  entryZone: [number, number];
+  optimalEntry: number;
+  takeProfits: TakeProfitTarget[];
+  stopLoss: StopLossConfig;
+  recommendedLeverage: string;
+  leverageValue: number;
+  riskRewardRatio: number;
+  trend: 'BULLISH' | 'BEARISH' | 'RANGING' | 'BREAKOUT';
+  analysisFa: string;
+  analysisEn: string;
+  indicatorsSummary: {
+    rsi: number;
+    rsiCondition: 'Oversold' | 'Overbought' | 'Neutral' | 'Bullish Divergence' | 'Bearish Divergence';
+    macd: string;
+    emaTrend: string;
+    supportLevels: number[];
+    resistanceLevels: number[];
+    orderBlocks?: string;
+  };
+  strategyUsed: string;
+  riskProfileUsed?: RiskProfileMode;
+  timestamp: number;
+  telegramMessage: string;
+  baleMessage: string;
+  status: 'PENDING' | 'ACTIVE' | 'HIT_TP1' | 'HIT_TP2' | 'HIT_TP3' | 'HIT_SL' | 'CLOSED';
+}
+
+export interface InlineButton {
+  text: string;
+  callback_data: string;
+  url?: string;
+  iconType?: 'chart' | 'calc' | 'risk' | 'scan' | 'bot' | 'refresh';
+}
+
+export interface BotMessage {
+  id: string;
+  platform: 'telegram' | 'bale';
+  sender: 'user' | 'bot';
+  text: string;
+  timestamp: number;
+  setup?: TradeSetup;
+  buttons?: InlineButton[][];
+}
+
+export interface MarketTicker {
+  symbol: string;
+  name: string;
+  category: MarketCategory;
+  price: number;
+  change24h: number;
+  high24h: number;
+  low24h: number;
+  volume24h: string;
+  tvSymbol: string;
+}
+
+export interface BotConfig {
+  telegramToken: string;
+  telegramChatId: string;
+  telegramEnabled: boolean;
+  baleToken: string;
+  baleChatId: string;
+  baleEnabled: boolean;
+  autoBroadcast: boolean;
+  defaultTimeframe: Timeframe;
+  defaultRiskPercent: number;
+  riskSettings: RiskSettings;
+  autoHunter: AutoHunterConfig;
+}
+

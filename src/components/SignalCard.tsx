@@ -1,0 +1,361 @@
+import React, { useState } from 'react';
+import { TradeSetup } from '../types';
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
+  ShieldAlert,
+  Zap,
+  Copy,
+  Check,
+  Send,
+  Sparkles,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Award,
+  Layers,
+  Activity,
+  Compass,
+  Scale,
+} from 'lucide-react';
+
+interface SignalCardProps {
+  setup: TradeSetup;
+  onSendToTelegram: (setup: TradeSetup) => void;
+  onSendToBale: (setup: TradeSetup) => void;
+  onOpenCalculator?: (setup: TradeSetup) => void;
+  onSaveToJournal?: (setup: TradeSetup) => void;
+  onOpenLegal?: () => void;
+}
+
+export const SignalCard: React.FC<SignalCardProps> = ({
+  setup,
+  onSendToTelegram,
+  onSendToBale,
+  onOpenCalculator,
+  onSaveToJournal,
+  onOpenLegal,
+}) => {
+  const [copied, setCopied] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(true);
+  const [activeTab, setActiveTab] = useState<'fa' | 'en' | 'raw'>('fa');
+
+  const isLong = setup.action === 'LONG';
+  const isShort = setup.action === 'SHORT';
+  const isWait = setup.action === 'WAIT';
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(setup.telegramMessage || setup.baleMessage);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const actionBg = isLong
+    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+    : isShort
+    ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+    : 'bg-amber-500/10 border-amber-500/30 text-amber-400';
+
+  return (
+    <div
+      id={`signal-card-${setup.id}`}
+      className="bg-slate-900/95 border border-slate-800 rounded-2xl p-5 md:p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden transition-all hover:border-slate-700"
+    >
+      {/* Decorative Glow */}
+      <div
+        className={`absolute -top-24 -right-24 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none ${
+          isLong ? 'bg-emerald-500' : isShort ? 'bg-rose-500' : 'bg-amber-500'
+        }`}
+      />
+
+      {/* Header Info */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className={`px-3.5 py-1.5 rounded-xl border font-bold text-sm flex items-center gap-2 shadow-inner ${actionBg}`}
+          >
+            {isLong && <TrendingUp className="w-4 h-4" />}
+            {isShort && <TrendingDown className="w-4 h-4" />}
+            {isWait && <Activity className="w-4 h-4" />}
+            <span>
+              {isLong ? '🟢 سیگنال لانگ (LONG)' : isShort ? '🔴 سیگنال شورت (SHORT)' : '🟡 وضعیت انتظار (WAIT)'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-slate-100 tracking-wide font-['Plus_Jakarta_Sans',sans-serif]">
+              {setup.symbol}
+            </span>
+            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs font-semibold">
+              {setup.timeframe}
+            </span>
+          </div>
+        </div>
+
+        {/* Grade & Confidence Badge */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+            <Award className="w-3.5 h-3.5" />
+            <span>گرید {setup.grade}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="mono-num">{setup.confidence}% ضریب اطمینان</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Price Grid (Entry, TP Targets, Stop Loss, Leverage) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 my-4">
+        {/* Entry Zone */}
+        <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span className="flex items-center gap-1">
+              <Zap className="w-3.5 h-3.5 text-blue-400" />
+              محدوده ورود (Entry)
+            </span>
+            <span className="text-[10px] text-slate-500">قیمت لحظه‌ای: ${setup.currentPrice.toLocaleString()}</span>
+          </div>
+          <div className="mono-num text-base font-bold text-slate-100">
+            ${setup.entryZone[0].toLocaleString()} - ${setup.entryZone[1].toLocaleString()}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+            <span>نقطه بهینه:</span>
+            <span className="mono-num text-emerald-400 font-semibold">${setup.optimalEntry.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Take Profit 1 & 2 */}
+        <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5">
+          <div className="flex items-center justify-between text-xs text-emerald-400 mb-1">
+            <span className="flex items-center gap-1">
+              <Target className="w-3.5 h-3.5" />
+              تارگت‌های سود (TPs)
+            </span>
+            <span className="text-[10px] text-slate-400">۳ مرحله خروج</span>
+          </div>
+          <div className="space-y-1 text-xs">
+            {setup.takeProfits.map((tp) => (
+              <div key={tp.target} className="flex items-center justify-between">
+                <span className="text-slate-400 text-[11px]">TP{tp.target}:</span>
+                <span className="mono-num font-bold text-emerald-300">${tp.price.toLocaleString()}</span>
+                <span className="mono-num text-[11px] text-emerald-400 font-medium">+{tp.pnlPercent}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stop Loss */}
+        <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5">
+          <div className="flex items-center justify-between text-xs text-rose-400 mb-1">
+            <span className="flex items-center gap-1">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              حد ضرر (Stop Loss)
+            </span>
+            <span className="mono-num text-[11px] text-rose-400 font-semibold">{setup.stopLoss.lossPercent}%</span>
+          </div>
+          <div className="mono-num text-base font-bold text-rose-400">${setup.stopLoss.price.toLocaleString()}</div>
+          <div className="text-[11px] text-slate-400 mt-1 truncate" title={setup.stopLoss.invalidationReasonFa}>
+            {setup.stopLoss.invalidationReasonFa}
+          </div>
+        </div>
+
+        {/* Leverage & Risk Reward */}
+        <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5">
+          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+            <span className="flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-purple-400" />
+              اهرم و نسبت RR
+            </span>
+            <span className="text-[10px] text-purple-300 font-semibold">1:2 Risk Formula</span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <div>
+              <span className="text-[10px] text-slate-500 block">لوریج پیشنهادی:</span>
+              <span className="mono-num text-sm font-bold text-purple-300">{setup.recommendedLeverage}</span>
+            </div>
+            <div className="text-left">
+              <span className="text-[10px] text-slate-500 block">ریسک به ریوارد:</span>
+              <span className="mono-num text-sm font-bold text-emerald-400">1:{setup.riskRewardRatio}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Persian AI Analysis Commentary */}
+      <div className="bg-slate-950/50 border border-slate-800/60 rounded-xl p-4 my-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-bold text-slate-200">تحلیل تکنیکال و استراتژی پرایس‌اکشن:</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs">
+            <button
+              onClick={() => setActiveTab('fa')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                activeTab === 'fa' ? 'bg-emerald-500/20 text-emerald-300 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              تحلیل فارسی
+            </button>
+            <button
+              onClick={() => setActiveTab('en')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                activeTab === 'en' ? 'bg-blue-500/20 text-blue-300 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setActiveTab('raw')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                activeTab === 'raw' ? 'bg-purple-500/20 text-purple-300 font-bold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              متن بات
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'fa' && (
+          <p className="text-xs md:text-sm text-slate-300 leading-relaxed text-justify">
+            {setup.analysisFa}
+          </p>
+        )}
+
+        {activeTab === 'en' && (
+          <p className="text-xs md:text-sm text-slate-300 leading-relaxed font-sans text-left dir-ltr">
+            {setup.analysisEn}
+          </p>
+        )}
+
+        {activeTab === 'raw' && (
+          <pre className="text-[11px] font-mono bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
+            {setup.telegramMessage}
+          </pre>
+        )}
+
+        {/* Technical Indicators Dropdown */}
+        <div className="mt-3 pt-3 border-t border-slate-800/80">
+          <button
+            onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+            className="flex items-center justify-between w-full text-xs text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <span className="flex items-center gap-1.5 font-medium">
+              <Compass className="w-3.5 h-3.5 text-blue-400" />
+              جزییات اندیکاتورها (RSI, MACD, EMAs, Order Blocks)
+            </span>
+            {showTechnicalDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {showTechnicalDetails && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2.5 text-xs">
+              <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <span className="text-slate-500 block text-[10px]">شاخص RSI:</span>
+                <span className="mono-num font-bold text-slate-200">{setup.indicatorsSummary.rsi}</span>
+                <span className="text-[10px] text-emerald-400 block">{setup.indicatorsSummary.rsiCondition}</span>
+              </div>
+              <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <span className="text-slate-500 block text-[10px]">موقعیت MACD:</span>
+                <span className="font-semibold text-slate-200 text-[11px] truncate block">
+                  {setup.indicatorsSummary.macd}
+                </span>
+              </div>
+              <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <span className="text-slate-500 block text-[10px]">روند میانگین‌های متحرک:</span>
+                <span className="font-semibold text-slate-200 text-[11px] truncate block">
+                  {setup.indicatorsSummary.emaTrend}
+                </span>
+              </div>
+              <div className="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                <span className="text-slate-500 block text-[10px]">ناحیه نقدینگی و بلوک سفارش:</span>
+                <span className="font-semibold text-amber-300 text-[11px] truncate block">
+                  {setup.indicatorsSummary.orderBlocks || 'Zone Retest'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action Footer Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Send to Telegram */}
+          <button
+            id={`send-tg-${setup.id}`}
+            onClick={() => onSendToTelegram(setup)}
+            className="px-3.5 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+          >
+            <Send className="w-3.5 h-3.5" />
+            ارسال به بات تلگرام
+          </button>
+
+          {/* Send to Bale */}
+          <button
+            id={`send-bale-${setup.id}`}
+            onClick={() => onSendToBale(setup)}
+            className="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+          >
+            <Send className="w-3.5 h-3.5" />
+            ارسال به بات بله
+          </button>
+
+          {/* Copy Message */}
+          <button
+            id={`copy-msg-${setup.id}`}
+            onClick={handleCopy}
+            className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-all flex items-center gap-1.5 active:scale-95"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? 'کپی شد!' : 'کپی سیگنال'}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Calculator */}
+          {onOpenCalculator && (
+            <button
+              id={`calc-${setup.id}`}
+              onClick={() => onOpenCalculator(setup)}
+              className="px-3 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-medium transition-all flex items-center gap-1.5"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              محاسبه حجم و سود
+            </button>
+          )}
+
+          {/* Journal */}
+          {onSaveToJournal && (
+            <button
+              id={`journal-${setup.id}`}
+              onClick={() => onSaveToJournal(setup)}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-all flex items-center gap-1.5"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              ثبت در ژورنال
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Legal & Liability Notice Footer */}
+      <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
+        <div className="flex items-center gap-1.5 text-center sm:text-right">
+          <Scale className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span>مسئولیت ریسک و ورود به معامله ۱۰۰٪ بر عهده کاربر است. هیچ سودی به سازنده تعلق نمی‌گیرد.</span>
+        </div>
+        {onOpenLegal && (
+          <button
+            onClick={onOpenLegal}
+            className="text-amber-400 hover:text-amber-300 underline underline-offset-2 font-medium shrink-0"
+          >
+            مشاهده متن کامل قوانین و سلب مسئولیت
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};

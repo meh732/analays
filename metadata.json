@@ -1,0 +1,6 @@
+{
+  "name": "TradingView Telegram & Bale Signal Bot",
+  "description": "ربات تحلیل تکنیکال چارت‌های تریدینگ‌ویو، ستاپ‌های سودآور فیوچرز (Long/Short)، نقاط ورود و خروج، حد سود و ضرر، و اتصال به تلگرام و بله",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
