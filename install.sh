@@ -67,16 +67,17 @@ run_elevated() {
 check_and_install_dependencies() {
     echo -e "${BLUE}🔍 Checking system prerequisites...${NC}"
 
-    for pkg in curl git tar gzip; do
+    for pkg in curl git tar gzip build-essential; do
         if ! command -v $pkg >/dev/null 2>&1; then
-            echo -e "${YELLOW}📦 Installing missing utility: $pkg...${NC}"
+            echo -e "${YELLOW}📦 Ensuring essential system package: $pkg...${NC}"
             if command -v apt-get >/dev/null 2>&1; then
-                run_elevated apt-get update -y && run_elevated apt-get install -y $pkg
+                run_elevated apt-get update -y && run_elevated apt-get install -y curl git tar gzip build-essential ca-certificates
             elif command -v dnf >/dev/null 2>&1; then
-                run_elevated dnf install -y $pkg
+                run_elevated dnf install -y curl git tar gzip gcc-c++ make
             elif command -v yum >/dev/null 2>&1; then
-                run_elevated yum install -y $pkg
+                run_elevated yum install -y curl git tar gzip gcc-c++ make
             fi
+            break
         fi
     done
 
