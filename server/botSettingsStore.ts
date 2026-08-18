@@ -15,6 +15,7 @@ export interface ChatSettings {
   leverage: number;
   tpStyle: 'tight_safe' | 'balanced' | 'extended_runner';
   minRRRatio: number;
+  history?: any[];
 }
 
 export interface GlobalBotConfig {

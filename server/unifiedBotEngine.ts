@@ -72,64 +72,78 @@ async function handleSymbolSearch(
   settings: any,
   mainReplyMenu: any
 ) {
+  const sendMessage = async (txt: string, opts?: any) => {
+    if (botType === "telegram") {
+      return sendTelegramMessage(token, chatId.toString(), txt, opts);
+    } else {
+      return sendBaleMessage(token, chatId.toString(), txt, opts);
+    }
+  };
+
   try {
+    const loadingText = `⏳ **در حال دریافت داده‌های زنده و تحلیل ستاپ هوشمند ورود/خروج برای #${symbol}...**\n\nلطفا چند ثانیه منتظر بمانید تا الگوهای پرایس اکشن و سطوح نقدینگی استخراج شوند.`;
+    await sendMessage(loadingText, { replyKeyboard: mainReplyMenu });
+    
+    // Fetch live market data
     const marketData = await fetchLiveMarketData(symbol);
-    const priceFormatted = marketData.price.toLocaleString();
-    const changeSign = marketData.change24h >= 0 ? "🟢 +" : "🔴 ";
-    const rsi = marketData.indicators.rsi14;
-    const rsiStatus = rsi > 70 ? "🔥 اشباع خرید" : rsi < 30 ? "❄️ اشباع فروش" : "⚖️ خنثی";
+    
+    // Generate full trading setup with Entry, SL, TPs
+    const setup = await generateAITradingAnalysis({
+      symbol,
+      timeframe: settings.timeframe || "15m",
+      engineMode: settings.engineMode || "ONLINE_AI",
+      timeHorizon: settings.timeHorizon || "intraday_hours",
+      strategy: settings.strategy || "SMC & Price Action",
+      actionPreference: settings.directionPreference || "AUTO",
+      riskSettings: {
+        profile: settings.riskProfile || "moderate",
+        maxRiskPercent: settings.riskPercent || 2.0,
+        maxLeverage: settings.leverage || 15,
+        minRRRatio: settings.minRRRatio || 2.5,
+        tpStyle: settings.tpStyle || "balanced",
+      }
+    }, marketData);
 
-    const searchText = `🔍 **نتایج جستجوی پیشرفته نماد: #${symbol}** 🔍\n\n` +
-      `📌 **مشخصات عمومی بازار:**\n` +
-      `• 🏷️ نام نماد: **${marketData.name}**\n` +
-      `• 📂 دسته‌بندی: **${marketData.category.toUpperCase()}**\n` +
-      `• 💵 قیمت لحظه‌ای: **$${priceFormatted}**\n` +
-      `• 📊 تغییرات ۲۴ ساعته: **${changeSign}${marketData.change24h}%**\n\n` +
-      `💡 **خلاصه وضعیت اندیکاتورها:**\n` +
-      `• 📈 شاخص قدرت نسبی (RSI): **${rsi} (${rsiStatus})**\n` +
-      `• 🚀 میانگین متحرک EMA20: **$${marketData.indicators.ema20.toLocaleString()}**\n` +
-      `• 🛡️ حمایت اول (S1): **$${marketData.indicators.support1.toLocaleString()}**\n` +
-      `• 🎯 مقاومت اول (R1): **$${marketData.indicators.resistance1.toLocaleString()}**\n\n` +
-      `👇 جهت تحلیل این نماد یا افزودن آن به دیده‌بان شکارچی خودکار، دکمه‌های زیر را لمس کنید:`;
+    // Save to history
+    saveToHistory(chatId, setup);
 
+    const setupMsg = botType === "telegram" ? setup.telegramMessage : setup.baleMessage;
     const wl = settings.watchlist || [];
     const isInWatchlist = wl.includes(symbol);
 
     const inlineKeyboard = [
       [
         isInWatchlist 
-          ? { text: "➖ 𝖱𝖤𝖬𝖮𝖵𝖤 | حذف از واچ‌لیست دیده‌بان", callback_data: `/remove_wl_confirm ${symbol}` }
-          : { text: "➕ 𝖠𝖣𝖣 | افزودن به واچ‌لیست دیده‌بان", callback_data: `/add_wl_confirm ${symbol}` }
+          ? { text: `➖ 𝖱𝖤𝖬𝖮𝖵𝖤 | حذف #${symbol} از دیده‌بان`, callback_data: `/remove_wl_confirm ${symbol}` }
+          : { text: `➕ 𝖠𝖣𝖣 | افزودن #${symbol} به دیده‌بان`, callback_data: `/add_wl_confirm ${symbol}` }
       ],
       [
-        { text: "🧠 تحلیل زنده هوش مصنوعی (ONLINE)", callback_data: `/analyze ${symbol} ${settings.timeframe} ONLINE_AI` },
-        { text: "📚 ستاپ آفلاین پرایس اکشن (SMC)", callback_data: `/analyze ${symbol} ${settings.timeframe} OFFLINE_RULES` }
+        { text: `🧮 محاسبه حجم معامله (Position)`, callback_data: `/calc_setup ${symbol} ${setup.optimalEntry} ${setup.stopLoss.price}` }
       ],
       [
-        { text: "🧮 محاسبه حجم معامله", callback_data: `/calc_setup ${symbol} ${marketData.price} ${marketData.indicators.support1}` },
-        { text: "🔙 مدیریت واچ‌لیست", callback_data: "/watchlist_menu" }
+        { text: `🧠 هوش مصنوعی زنده`, callback_data: `/analyze ${symbol} ${settings.timeframe || "15m"} ONLINE_AI` },
+        { text: `📚 ستاپ آفلاین SMC`, callback_data: `/analyze ${symbol} ${settings.timeframe || "15m"} OFFLINE_RULES` }
+      ],
+      [
+        { text: `🔍 جستجوی نماد جدید`, callback_data: `/search_prompt` },
+        { text: `🔙 منوی اصلی ربات`, callback_data: `/main_menu` }
       ]
     ];
 
-    if (botType === "telegram") {
-      await sendTelegramMessage(token, chatId.toString(), searchText, {
-        inlineKeyboard,
-        resizeKeyboard: true,
-        replyKeyboard: mainReplyMenu,
-      });
-    } else {
-      await sendBaleMessage(token, chatId.toString(), searchText, {
-        inlineKeyboard,
-        replyKeyboard: mainReplyMenu,
-      });
-    }
+    await sendMessage(setupMsg, {
+      inlineKeyboard,
+      replyKeyboard: mainReplyMenu,
+    });
   } catch (err) {
-    const errorMsg = `❌ نماد **"${symbol}"** در بازارهای پشتیبانی‌شده یافت نشد.\n\nلطفا نام نماد را به درستی وارد کنید (مانند: BTCUSDT یا NVDA یا EURUSD).`;
-    if (botType === "telegram") {
-      await sendTelegramMessage(token, chatId.toString(), errorMsg, { replyKeyboard: mainReplyMenu });
-    } else {
-      await sendBaleMessage(token, chatId.toString(), errorMsg, { replyKeyboard: mainReplyMenu });
-    }
+    console.error("Symbol search analysis error:", err);
+    const errorMsg = `❌ نماد یا دارایی **"${symbol}"** در بازارهای تریدینگ‌ویو یافت نشد یا در پردازش آن خطایی رخ داد.\n\nلطفا نام نماد را به درستی وارد کنید. نمونه‌ها:\n• کریپتو: \`BTCUSDT\`\n• فارکس: \`EURUSD\`\n• طلا: \`XAUUSD\`\n• سهام: \`NVDA\``;
+    await sendMessage(errorMsg, {
+      inlineKeyboard: [
+        [{ text: "🔍 تلاش مجدد (جستجو)", callback_data: "/search_prompt" }],
+        [{ text: "🔙 منوی اصلی", callback_data: "/main_menu" }]
+      ],
+      replyKeyboard: mainReplyMenu
+    });
   }
 }
 
@@ -609,32 +623,164 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
       }
 
       if (data === "/menu_balance") {
-        await sendMessage(chatId.toString(), `💵 **تنظیم موجودی حساب معاملاتی**\n\nبرای تنظیم سرمایه دلاری خود، لطفا دستور زیر را بنویسید و ارسال کنید:\n\n\`/set_balance [مقدار دلاری]\`\n\nمثال: \`/set_balance 2500\``, {
+        await sendMessage(chatId.toString(), `💵 **تنظیم موجودی حساب معاملاتی (سرمایه کل)**\n\nیکی از موجودی‌های پیش‌فرض زیر را انتخاب کنید یا روی دکمه ورود دستی ضربه بزنید:`, {
+          inlineKeyboard: [
+            [
+              { text: "💵 $500", callback_data: "/set_bal_val 500" },
+              { text: "💵 $1,000", callback_data: "/set_bal_val 1000" },
+              { text: "💵 $2,500", callback_data: "/set_bal_val 2500" }
+            ],
+            [
+              { text: "💵 $5,000", callback_data: "/set_bal_val 5000" },
+              { text: "💵 $10,000", callback_data: "/set_bal_val 10000" },
+              { text: "💵 $50,000", callback_data: "/set_bal_val 50000" }
+            ],
+            [
+              { text: "✏️ ورود دستی عدد دلخواه", callback_data: "/prompt_balance" }
+            ],
+            [{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data.startsWith("/set_bal_val ")) {
+        const val = parseFloat(data.replace("/set_bal_val ", "").trim());
+        updateChatSettings(chatId, { balance: val });
+        await sendMessage(chatId.toString(), `✅ موجودی کل حساب شما با موفقیت روی **$${val.toLocaleString()}** تنظیم شد.`, {
           inlineKeyboard: [[{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data === "/prompt_balance") {
+        await sendMessage(chatId.toString(), `✏️ **ورود دستی سرمایه کل حساب**\n\nلطفا موجودی دلخواه خود را به دلار به صورت عدد انگلیسی بنویسید و ارسال کنید:\n\nمثال: \`2500\``, {
+          inlineKeyboard: [[{ text: "🔙 انصراف و بازگشت", callback_data: "/menu_balance" }]],
           replyKeyboard: mainReplyMenu,
         });
         return;
       }
 
       if (data === "/menu_risk_percent") {
-        await sendMessage(chatId.toString(), `⚖️ **تنظیم درصد ریسک هر معامله**\n\nبرای تنظیم درصد ریسک مجاز در هر پوزیشن، لطفا دستور زیر را ارسال کنید:\n\n\`/set_risk_percent [درصد]\`\n\nمثال: \`/set_risk_percent 1.5\``, {
+        await sendMessage(chatId.toString(), `⚖️ **تنظیم درصد ریسک هر معامله**\n\nدرصد ریسک مجاز در هر پوزیشن را انتخاب کنید یا دستی وارد کنید:`, {
+          inlineKeyboard: [
+            [
+              { text: "🛡️ 0.5%", callback_data: "/set_risk_val 0.5" },
+              { text: "🛡️ 1.0%", callback_data: "/set_risk_val 1.0" },
+              { text: "⚖️ 1.5%", callback_data: "/set_risk_val 1.5" }
+            ],
+            [
+              { text: "⚖️ 2.0%", callback_data: "/set_risk_val 2.0" },
+              { text: "🚀 3.0%", callback_data: "/set_risk_val 3.0" },
+              { text: "🚀 5.0%", callback_data: "/set_risk_val 5.0" }
+            ],
+            [
+              { text: "✏️ ورود دستی درصد ریسک", callback_data: "/prompt_risk" }
+            ],
+            [{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data.startsWith("/set_risk_val ")) {
+        const val = parseFloat(data.replace("/set_risk_val ", "").trim());
+        updateChatSettings(chatId, { riskPercent: val });
+        await sendMessage(chatId.toString(), `✅ درصد ریسک معاملات شما با موفقیت روی **${val}%** تنظیم شد.`, {
           inlineKeyboard: [[{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data === "/prompt_risk") {
+        await sendMessage(chatId.toString(), `✏️ **ورود دستی درصد ریسک معامله**\n\nلطفا درصد ریسک دلخواه خود در هر پوزیشن (بین ۰.۱٪ تا ۱۰٪) را به عدد انگلیسی بنویسید و ارسال کنید:\n\nمثال: \`1.5\``, {
+          inlineKeyboard: [[{ text: "🔙 انصراف و بازگشت", callback_data: "/menu_risk_percent" }]],
           replyKeyboard: mainReplyMenu,
         });
         return;
       }
 
       if (data === "/menu_leverage") {
-        await sendMessage(chatId.toString(), `🚀 **تنظیم سقف اهرم معاملاتی (Max Leverage)**\n\nبرای تعیین سقف اهرم مجاز، لطفا دستور زیر را ارسال کنید:\n\n\`/set_leverage [مقدار اهرم]\`\n\nمثال: \`/set_leverage 15\``, {
+        await sendMessage(chatId.toString(), `🚀 **تنظیم سقف اهرم معاملاتی (Max Leverage)**\n\nحداکثر لوریج مجاز پوزیشن‌ها را انتخاب کنید یا دستی وارد کنید:`, {
+          inlineKeyboard: [
+            [
+              { text: "🚀 1x", callback_data: "/set_lev_val 1" },
+              { text: "🚀 3x", callback_data: "/set_lev_val 3" },
+              { text: "🚀 5x", callback_data: "/set_lev_val 5" }
+            ],
+            [
+              { text: "🚀 10x", callback_data: "/set_lev_val 10" },
+              { text: "🚀 20x", callback_data: "/set_lev_val 20" },
+              { text: "🚀 50x", callback_data: "/set_lev_val 50" }
+            ],
+            [
+              { text: "✏️ ورود دستی اهرم", callback_data: "/prompt_leverage" }
+            ],
+            [{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data.startsWith("/set_lev_val ")) {
+        const val = parseInt(data.replace("/set_lev_val ", "").trim());
+        updateChatSettings(chatId, { leverage: val });
+        await sendMessage(chatId.toString(), `✅ سقف اهرم معاملاتی پوزیشن‌ها با موفقیت روی **${val}x** تنظیم شد.`, {
           inlineKeyboard: [[{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]],
           replyKeyboard: mainReplyMenu,
         });
         return;
       }
 
+      if (data === "/prompt_leverage") {
+        await sendMessage(chatId.toString(), `✏️ **ورود دستی سقف اهرم معامله**\n\nلطفا حداکثر اهرم دلخواه خود (بین ۱ تا ۱۲۵) را به صورت عدد انگلیسی بنویسید و ارسال کنید:\n\nمثال: \`15\``, {
+          inlineKeyboard: [[{ text: "🔙 انصراف و بازگشت", callback_data: "/menu_leverage" }]],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
       if (data === "/menu_min_rr") {
-        await sendMessage(chatId.toString(), `💎 **تنظیم حداقل نسبت پاداش به ریسک (Min Risk:Reward)**\n\nبرای تنظیم حداقل R:R مورد انتظار در تحلیل‌ها، لطفا دستور زیر را ارسال کنید:\n\n\`/set_min_rr [عدد R:R]\`\n\nمثال: \`/set_min_rr 2.5\``, {
+        await sendMessage(chatId.toString(), `💎 **تنظیم حداقل نسبت پاداش به ریسک (Min Risk:Reward)**\n\nحداقل نسبت R:R مورد انتظار در ستاپ‌ها را انتخاب کنید یا دستی وارد کنید:`, {
+          inlineKeyboard: [
+            [
+              { text: "💎 1:1.5", callback_data: "/set_rr_val 1.5" },
+              { text: "💎 1:2.0", callback_data: "/set_rr_val 2.0" },
+              { text: "💎 1:2.5", callback_data: "/set_rr_val 2.5" }
+            ],
+            [
+              { text: "💎 1:3.0", callback_data: "/set_rr_val 3.0" },
+              { text: "💎 1:4.0", callback_data: "/set_rr_val 4.0" },
+              { text: "💎 1:5.0", callback_data: "/set_rr_val 5.0" }
+            ],
+            [
+              { text: "✏️ ورود دستی R:R", callback_data: "/prompt_min_rr" }
+            ],
+            [{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data.startsWith("/set_rr_val ")) {
+        const val = parseFloat(data.replace("/set_rr_val ", "").trim());
+        updateChatSettings(chatId, { minRRRatio: val });
+        await sendMessage(chatId.toString(), `✅ حداقل نسبت پاداش به ریسک (R:R) روی **1:${val}** تنظیم شد.`, {
           inlineKeyboard: [[{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data === "/prompt_min_rr") {
+        await sendMessage(chatId.toString(), `✏️ **ورود دستی حداقل R:R مورد انتظار**\n\nلطفا نسبت پاداش به ریسک مورد نظر خود (بین ۱ تا ۱۰) را به صورت عدد انگلیسی بنویسید و ارسال کنید:\n\nمثال: \`2.5\``, {
+          inlineKeyboard: [[{ text: "🔙 انصراف و بازگشت", callback_data: "/menu_min_rr" }]],
           replyKeyboard: mainReplyMenu,
         });
         return;
@@ -650,8 +796,7 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
           inlineKeyboard: [
             [{ text: settings.autoHunterEnabled ? "🔴 خاموش کردن شکارچی" : "🟢 روشن کردن شکارچی", callback_data: "/toggle_hunter" }],
             [
-              { text: "➕ افزودن به دیده‌بان", callback_data: "/hunter_add" },
-              { text: "➖ حذف از دیده‌بان", callback_data: "/hunter_remove" }
+              { text: "➕ مدیریت واچ‌لیست", callback_data: "/watchlist_menu" }
             ],
             [{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]
           ],
@@ -671,16 +816,64 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
       }
 
       if (data === "/hunter_add") {
-        await sendMessage(chatId.toString(), `➕ **افزودن نماد به لیست شکارچی خودکار**\n\nلطفا دستور زیر را بفرستید:\n\n\`/add_watchlist [نام نماد]\`\n\nمثال: \`/add_watchlist SOLUSDT\``, {
-          inlineKeyboard: [[{ text: "🔙 بازگشت", callback_data: "/menu_hunter" }]],
+        await sendMessage(chatId.toString(), `➕ **افزودن سریع نماد به واچ‌لیست دیده‌بان**\n\nیکی از دارایی‌های پرطرفدار زیر را انتخاب کنید یا روی ورود دستی ضربه بزنید:`, {
+          inlineKeyboard: [
+            [
+              { text: "🪙 BTC", callback_data: "/add_wl_confirm BTCUSDT" },
+              { text: "🪙 ETH", callback_data: "/add_wl_confirm ETHUSDT" },
+              { text: "🪙 SOL", callback_data: "/add_wl_confirm SOLUSDT" }
+            ],
+            [
+              { text: "🪙 XRP", callback_data: "/add_wl_confirm XRPUSDT" },
+              { text: "🪙 ADA", callback_data: "/add_wl_confirm ADAUSDT" },
+              { text: "🪙 DOGE", callback_data: "/add_wl_confirm DOGEUSDT" }
+            ],
+            [
+              { text: "🥇 GOLD", callback_data: "/add_wl_confirm XAUUSD" },
+              { text: "💱 EURUSD", callback_data: "/add_wl_confirm EURUSD" },
+              { text: "📈 Tesla", callback_data: "/add_wl_confirm TSLA" }
+            ],
+            [
+              { text: "✏️ ورود دستی نام نماد دلخواه", callback_data: "/prompt_hunter_add" }
+            ],
+            [{ text: "🔙 بازگشت به دیده‌بان", callback_data: "/watchlist_menu" }]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data === "/prompt_hunter_add") {
+        await sendMessage(chatId.toString(), `✏️ **ورود دستی نام نماد برای افزودن**\n\nلطفا نام نماد مورد نظر خود را ارسال کنید تا مستقیما تحلیل شده و به واچ‌لیست شما اضافه شود:\n\nمثال: \`SOLUSDT\` یا \`GBPUSD\``, {
+          inlineKeyboard: [[{ text: "🔙 انصراف و بازگشت", callback_data: "/hunter_add" }]],
           replyKeyboard: mainReplyMenu,
         });
         return;
       }
 
       if (data === "/hunter_remove") {
-        await sendMessage(chatId.toString(), `➖ **حذف نماد از لیست شکارچی خودکار**\n\nلطفا دستور زیر را بفرستید:\n\n\`/remove_watchlist [نام نماد]\`\n\nمثال: \`/remove_watchlist TSLA\``, {
-          inlineKeyboard: [[{ text: "🔙 بازگشت", callback_data: "/menu_hunter" }]],
+        const wl = settings.watchlist || [];
+        if (wl.length === 0) {
+          await sendMessage(chatId.toString(), `⚠️ واچ‌لیست دیده‌بان شما خالی است. هیچ نمادی برای حذف وجود ندارد.`, {
+            inlineKeyboard: [[{ text: "🔙 بازگشت", callback_data: "/watchlist_menu" }]],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+
+        const rows = [];
+        for (let i = 0; i < wl.length; i += 2) {
+          const row = [];
+          row.push({ text: `❌ #${wl[i]}`, callback_data: `/remove_wl_confirm ${wl[i]}` });
+          if (wl[i+1]) {
+            row.push({ text: `❌ #${wl[i+1]}`, callback_data: `/remove_wl_confirm ${wl[i+1]}` });
+          }
+          rows.push(row);
+        }
+        rows.push([{ text: "🔙 بازگشت به دیده‌بان", callback_data: "/watchlist_menu" }]);
+
+        await sendMessage(chatId.toString(), `❌ **حذف آسان نماد از واچ‌لیست دیده‌بان**\n\nروی هر کدام از نمادهای زیر کلیک کنید تا بلافاصله از دیده‌بان شکارچی شما حذف شود:`, {
+          inlineKeyboard: rows,
           replyKeyboard: mainReplyMenu,
         });
         return;
@@ -994,6 +1187,27 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
         replyKeyboard: mainReplyMenu,
       });
     } else {
+      const numVal = parseFloat(text);
+      if (!isNaN(numVal) && /^[0-9]+(\.[0-9]+)?$/.test(text.trim())) {
+        await sendMessage(chatId.toString(), `❓ **تشخیص خودکار ورودی عددی**\n\nشما عدد **${text}** را بدون دستور ارسال کرده‌اید. مایلید این مقدار روی کدام‌یک از تنظیمات معاملاتی شما اعمال شود؟`, {
+          inlineKeyboard: [
+            [
+              { text: `💵 سرمایه حساب ($${numVal.toLocaleString()})`, callback_data: `/set_bal_val ${numVal}` },
+              { text: `⚖️ درصد ریسک (${numVal}%)`, callback_data: `/set_risk_val ${numVal}` }
+            ],
+            [
+              { text: `🚀 ضریب اهرم (${numVal}x)`, callback_data: `/set_lev_val ${numVal}` },
+              { text: `💎 حداقل R:R (نسبت 1:${numVal})`, callback_data: `/set_rr_val ${numVal}` }
+            ],
+            [
+              { text: `❌ انصراف و منوی تنظیمات`, callback_data: `/settings_risk` }
+            ]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
       const parts = text.split(/\s+/);
       const symbol = parts[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
 
