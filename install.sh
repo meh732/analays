@@ -81,15 +81,16 @@ check_and_install_dependencies() {
         fi
     done
 
-    # Check Node.js version
+    # Check Node.js version (Node 20+ LTS is required for Tailwind 4 oxide and @google/genai)
     NEED_NODE_INSTALL=false
     if command -v node >/dev/null 2>&1; then
         NODE_VER=$(node -v | tr -d 'v' | cut -d'.' -f1)
-        if [ "$NODE_VER" -lt 18 ]; then
-            echo -e "${YELLOW}⚠️ Node.js version is older than 18 (current: $(node -v)). Upgrading to v20 LTS...${NC}"
+        if [ "$NODE_VER" -lt 20 ]; then
+            echo -e "${YELLOW}⚠️ Current Node.js version is $(node -v). Modern packages (@tailwindcss/oxide, @google/genai) require Node.js 20+ LTS.${NC}"
+            echo -e "${CYAN}🔄 Automatically upgrading Node.js to Node 20 LTS...${NC}"
             NEED_NODE_INSTALL=true
         else
-            echo -e "${GREEN}✅ Node.js $(node -v) is installed.${NC}"
+            echo -e "${GREEN}✅ Node.js $(node -v) is installed and compatible.${NC}"
         fi
     else
         echo -e "${YELLOW}⚠️ Node.js is not installed.${NC}"
@@ -97,18 +98,20 @@ check_and_install_dependencies() {
     fi
 
     if [ "$NEED_NODE_INSTALL" = true ]; then
-        echo -e "${CYAN}📥 Installing Node.js 20 LTS...${NC}"
+        echo -e "${CYAN}📥 Installing Node.js 20 LTS & build tools...${NC}"
         if command -v apt-get >/dev/null 2>&1; then
+            # Clean old nodejs repo sources to avoid conflicts
+            run_elevated apt-get remove -y nodejs npm 2>/dev/null || true
             curl -fsSL https://deb.nodesource.com/setup_20.x | run_elevated bash -
-            run_elevated apt-get install -y nodejs build-essential
+            run_elevated apt-get install -y nodejs build-essential ca-certificates
         elif command -v dnf >/dev/null 2>&1; then
             curl -fsSL https://rpm.nodesource.com/setup_20.x | run_elevated bash -
-            run_elevated dnf install -y nodejs
+            run_elevated dnf install -y nodejs gcc-c++ make
         elif command -v yum >/dev/null 2>&1; then
             curl -fsSL https://rpm.nodesource.com/setup_20.x | run_elevated bash -
-            run_elevated yum install -y nodejs
+            run_elevated yum install -y nodejs gcc-c++ make
         else
-            echo -e "${RED}❌ Unable to automatically install Node.js. Please install Node.js 18+ manually.${NC}"
+            echo -e "${RED}❌ Unable to automatically install Node.js 20. Please install Node.js 20+ manually.${NC}"
             exit 1
         fi
     fi
