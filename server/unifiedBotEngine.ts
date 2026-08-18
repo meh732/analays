@@ -64,6 +64,75 @@ export function saveToHistory(chatId: string | number, setup: any) {
   }
 }
 
+async function handleSymbolSearch(
+  chatId: number,
+  symbol: string,
+  botType: "telegram" | "bale",
+  token: string,
+  settings: any,
+  mainReplyMenu: any
+) {
+  try {
+    const marketData = await fetchLiveMarketData(symbol);
+    const priceFormatted = marketData.price.toLocaleString();
+    const changeSign = marketData.change24h >= 0 ? "🟢 +" : "🔴 ";
+    const rsi = marketData.indicators.rsi14;
+    const rsiStatus = rsi > 70 ? "🔥 اشباع خرید" : rsi < 30 ? "❄️ اشباع فروش" : "⚖️ خنثی";
+
+    const searchText = `🔍 **نتایج جستجوی پیشرفته نماد: #${symbol}** 🔍\n\n` +
+      `📌 **مشخصات عمومی بازار:**\n` +
+      `• 🏷️ نام نماد: **${marketData.name}**\n` +
+      `• 📂 دسته‌بندی: **${marketData.category.toUpperCase()}**\n` +
+      `• 💵 قیمت لحظه‌ای: **$${priceFormatted}**\n` +
+      `• 📊 تغییرات ۲۴ ساعته: **${changeSign}${marketData.change24h}%**\n\n` +
+      `💡 **خلاصه وضعیت اندیکاتورها:**\n` +
+      `• 📈 شاخص قدرت نسبی (RSI): **${rsi} (${rsiStatus})**\n` +
+      `• 🚀 میانگین متحرک EMA20: **$${marketData.indicators.ema20.toLocaleString()}**\n` +
+      `• 🛡️ حمایت اول (S1): **$${marketData.indicators.support1.toLocaleString()}**\n` +
+      `• 🎯 مقاومت اول (R1): **$${marketData.indicators.resistance1.toLocaleString()}**\n\n` +
+      `👇 جهت تحلیل این نماد یا افزودن آن به دیده‌بان شکارچی خودکار، دکمه‌های زیر را لمس کنید:`;
+
+    const wl = settings.watchlist || [];
+    const isInWatchlist = wl.includes(symbol);
+
+    const inlineKeyboard = [
+      [
+        isInWatchlist 
+          ? { text: "➖ 𝖱𝖤𝖬𝖮𝖵𝖤 | حذف از واچ‌لیست دیده‌بان", callback_data: `/remove_wl_confirm ${symbol}` }
+          : { text: "➕ 𝖠𝖣𝖣 | افزودن به واچ‌لیست دیده‌بان", callback_data: `/add_wl_confirm ${symbol}` }
+      ],
+      [
+        { text: "🧠 تحلیل زنده هوش مصنوعی (ONLINE)", callback_data: `/analyze ${symbol} ${settings.timeframe} ONLINE_AI` },
+        { text: "📚 ستاپ آفلاین پرایس اکشن (SMC)", callback_data: `/analyze ${symbol} ${settings.timeframe} OFFLINE_RULES` }
+      ],
+      [
+        { text: "🧮 محاسبه حجم معامله", callback_data: `/calc_setup ${symbol} ${marketData.price} ${marketData.indicators.support1}` },
+        { text: "🔙 مدیریت واچ‌لیست", callback_data: "/watchlist_menu" }
+      ]
+    ];
+
+    if (botType === "telegram") {
+      await sendTelegramMessage(token, chatId.toString(), searchText, {
+        inlineKeyboard,
+        resizeKeyboard: true,
+        replyKeyboard: mainReplyMenu,
+      });
+    } else {
+      await sendBaleMessage(token, chatId.toString(), searchText, {
+        inlineKeyboard,
+        replyKeyboard: mainReplyMenu,
+      });
+    }
+  } catch (err) {
+    const errorMsg = `❌ نماد **"${symbol}"** در بازارهای پشتیبانی‌شده یافت نشد.\n\nلطفا نام نماد را به درستی وارد کنید (مانند: BTCUSDT یا NVDA یا EURUSD).`;
+    if (botType === "telegram") {
+      await sendTelegramMessage(token, chatId.toString(), errorMsg, { replyKeyboard: mainReplyMenu });
+    } else {
+      await sendBaleMessage(token, chatId.toString(), errorMsg, { replyKeyboard: mainReplyMenu });
+    }
+  }
+}
+
 export async function handleBotUpdate(botType: "telegram" | "bale", token: string, update: any) {
   try {
     const message = update?.message;
@@ -135,29 +204,71 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
 🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلادرنگ و مولتی‌مدال پرایس اکشن
 📚 **۲. دانش و استراتژی آفلاین:** الگوریتم قوانین ثابت اسمارت‌مانی (SMC)، اردربلاک، هانت نقدینگی و فیبوناچی
 
-امکانات پنل به صورت **دکمه‌های شیشه‌ای** و **منوی زیر چت** در دسترس است:`;
+امکانات پنل به صورت **دکمه‌های شیشه‌ای با استایل رنگی** و **منوی زیر چت** در دسترس است:`;
         await sendMessage(chatId.toString(), welcome, {
           inlineKeyboard: [
             [
-              { text: "🧠 تحلیل زنده BTC (هوش مصنوعی)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
-              { text: "📚 ستاپ BTC (دانش آفلاین SMC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
+              { text: "🧠 𝖮𝖭𝖫𝖨𝖭𝖤 | 🟡 تحلیل هوش مصنوعی BTC", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
             ],
             [
-              { text: "🧠 تحلیل ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
-              { text: "🧠 تحلیل SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
+              { text: "📚 𝖮𝖥𝖥𝖫𝖨𝖭𝖤 | 🟡 ستاپ آفلاین SMC BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
+            ],
+            [
+              { text: "🔵 تحلیل زنده ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
+              { text: "🟣 تحلیل زنده SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
             ],
             [
               { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" },
-              { text: "⚙️ تنظیمات ریسک و سود", callback_data: "/settings_risk" },
+              { text: "⚙️ تنظیمات کاربری و ریسک", callback_data: "/settings_risk" },
             ],
             [
-              { text: "🔔 شکار خودکار فرصت‌ها", callback_data: "/menu_hunter" },
-              { text: "🧮 محاسبه‌گر حجم", callback_data: "/calc" },
+              { text: "🔔 شکارچی خودکار (Hunter)", callback_data: "/menu_hunter" },
+              { text: "🧮 محاسبه حجم معامله (Calc)", callback_data: "/calc" },
             ],
             [
-              { text: "📂 تاریخچه و ژورنال چت", callback_data: "/history_menu" },
-              { text: "🔍 مشاهده واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }
+              { text: "📂 ژورنال معاملات چت", callback_data: "/history_menu" },
+              { text: "🔍 مدیریت واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }
             ],
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data === "/search_prompt") {
+        await sendMessage(chatId.toString(), `🔍 **بخش جستجوی پیشرفته و افزودن دارایی خاص**\n\nبرای جستجوی زنده چارت، بررسی اندیکاتورها و افزودن نماد جدید به واچ‌لیست خود، نام نماد (ارزدیجیتال، فارکس یا سهام) را تایپ کرده و بفرستید.\n\n👉 **فرمت‌های نمونه:**\n• ارز دیجیتال: \`BTCUSDT\` یا \`SOLUSDT\`\n• جفت‌ارز فارکس: \`EURUSD\` یا \`GBPUSD\`\n• اونس جهانی طلا: \`XAUUSD\`\n• سهام بین‌المللی: \`NVDA\` یا \`TSLA\`\n\nهمچنین می‌توانید از دستور زیر استفاده کنید:\n\`/search [نام نماد]\``, {
+          inlineKeyboard: [[{ text: "🔙 بازگشت به واچ‌لیست", callback_data: "/watchlist_menu" }]],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data.startsWith("/add_wl_confirm")) {
+        const symbol = data.replace("/add_wl_confirm", "").trim().toUpperCase();
+        const wl = settings.watchlist || [];
+        if (!wl.includes(symbol)) {
+          updateChatSettings(chatId, { watchlist: [...wl, symbol] });
+        }
+        await sendMessage(chatId.toString(), `✅ نماد **#${symbol}** با موفقیت به واچ‌لیست دیده‌بان شما اضافه شد.`, {
+          inlineKeyboard: [
+            [{ text: "🔍 مشاهده واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }],
+            [{ text: "🔙 بازگشت به جستجوی نماد", callback_data: `/search_prompt` }]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      if (data.startsWith("/remove_wl_confirm")) {
+        const symbol = data.replace("/remove_wl_confirm", "").trim().toUpperCase();
+        const wl = settings.watchlist || [];
+        if (wl.includes(symbol)) {
+          updateChatSettings(chatId, { watchlist: wl.filter(s => s !== symbol) });
+        }
+        await sendMessage(chatId.toString(), `❌ نماد **#${symbol}** از واچ‌لیست دیده‌بان شما حذف شد.`, {
+          inlineKeyboard: [
+            [{ text: "🔍 مشاهده واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }],
+            [{ text: "🔙 بازگشت به جستجوی نماد", callback_data: `/search_prompt` }]
           ],
           replyKeyboard: mainReplyMenu,
         });
@@ -622,10 +733,16 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
         await sendMessage(chatId.toString(), `🔍 **واچ‌لیست دارایی‌های تحت نظر شکارچی${platformSuffix}** 🔍\n\nتعداد **${wl.length}** نماد در واچ‌لیست شما فعال است:\n\n${wl.map(s => `▫️ #${s}`).join(" | ")}\n\nجهت مدیریت نمادها، از دکمه‌های زیر استفاده کنید:`, {
           inlineKeyboard: [
             [
-              { text: "➕ افزودن به واچ‌لیست", callback_data: "/hunter_add" },
-              { text: "➖ حذف از واچ‌لیست", callback_data: "/hunter_remove" }
+              { text: "🔍 𝖲𝖤𝖠𝖱𝖢𝖧 | 🔎 جستجوی نماد خاص", callback_data: "/search_prompt" }
             ],
-            [{ text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }]
+            [
+              { text: "🟢 𝖠𝖣𝖣 | ➕ افزودن سریع", callback_data: "/hunter_add" },
+              { text: "🔴 𝖱𝖤𝖬𝖮𝖵𝖤 | ➖ حذف سریع", callback_data: "/hunter_remove" }
+            ],
+            [
+              { text: "⚙️ تنظیمات شکارچی", callback_data: "/menu_hunter" },
+              { text: "🔙 بازگشت به تنظیمات", callback_data: "/settings_risk" }
+            ]
           ],
           replyKeyboard: mainReplyMenu,
         });
@@ -795,32 +912,41 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
 🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلادرنگ و مولتی‌مدال پرایس اکشن
 📚 **۲. دانش و استراتژی آفلاین:** الگوریتم قوانین ثابت اسمارت‌مانی (SMC)، اردربلاک، هانت نقدینگی و فیبوناچی
 
-امکانات پنل به صورت **دکمه‌های شیشه‌ای** و **منوی زیر چت** در دسترس است:`;
+امکانات پنل به صورت **دکمه‌های شیشه‌ای با استایل رنگی** و **منوی زیر چت** در دسترس است:`;
       await sendMessage(chatId.toString(), welcome, {
         inlineKeyboard: [
           [
-            { text: "🧠 تحلیل زنده BTC (هوش مصنوعی)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
-            { text: "📚 ستاپ BTC (دانش آفلاین SMC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
+            { text: "🧠 𝖮𝖭𝖫𝖨𝖭𝖤 | 🟡 تحلیل هوش مصنوعی BTC", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
           ],
           [
-            { text: "🧠 تحلیل ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
-            { text: "🧠 تحلیل SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
+            { text: "📚 𝖮𝖥𝖥𝖫𝖨𝖭𝖤 | 🟡 ستاپ آفلاین SMC BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
+          ],
+          [
+            { text: "🔵 تحلیل زنده ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
+            { text: "🟣 تحلیل زنده SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
           ],
           [
             { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" },
-            { text: "⚙️ تنظیمات ریسک و سود", callback_data: "/settings_risk" },
+            { text: "⚙️ تنظیمات کاربری و ریسک", callback_data: "/settings_risk" },
           ],
           [
-            { text: "🔔 شکار خودکار فرصت‌ها", callback_data: "/menu_hunter" },
-            { text: "🧮 محاسبه‌گر حجم", callback_data: "/calc" },
+            { text: "🔔 شکارچی خودکار (Hunter)", callback_data: "/menu_hunter" },
+            { text: "🧮 محاسبه حجم معامله (Calc)", callback_data: "/calc" },
           ],
           [
-            { text: "📂 تاریخچه و ژورنال چت", callback_data: "/history_menu" },
-            { text: "🔍 مشاهده واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }
+            { text: "📂 ژورنال معاملات چت", callback_data: "/history_menu" },
+            { text: "🔍 مدیریت واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }
           ],
         ],
         replyKeyboard: mainReplyMenu,
       });
+    } else if (text.startsWith("/search")) {
+      const symbol = text.replace("/search", "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (!symbol) {
+        await sendMessage(chatId.toString(), `❌ لطفا نام نماد را وارد کنید. مثال:\n\`/search BTCUSDT\``, { replyKeyboard: mainReplyMenu });
+      } else {
+        await handleSymbolSearch(chatId, symbol, botType, token, settings, mainReplyMenu);
+      }
     } else if (text === "🧠 تحلیل هوش مصنوعی") {
       await sendMessage(chatId.toString(), "🧠 **تحلیل با هوش مصنوعی آنلاین (Gemini AI):**\nیک دارایی را انتخاب کنید:", {
         inlineKeyboard: [
@@ -870,46 +996,53 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
     } else {
       const parts = text.split(/\s+/);
       const symbol = parts[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
-      const tf = parts[1] || settings.timeframe;
-      const mode = (parts[2] === "OFFLINE" || parts[2] === "SMC") ? "OFFLINE_RULES" : settings.engineMode;
 
-      try {
-        const marketData = await fetchLiveMarketData(symbol);
-        const setup = await generateAITradingAnalysis({
-          symbol,
-          timeframe: tf,
-          engineMode: mode,
-          timeHorizon: settings.timeHorizon,
-          strategy: settings.strategy,
-          actionPreference: settings.directionPreference,
-          riskSettings: {
-            profile: settings.riskProfile,
-            maxRiskPercent: settings.riskPercent,
-            maxLeverage: settings.leverage,
-            minRRRatio: settings.minRRRatio,
-            tpStyle: settings.tpStyle,
-          }
-        }, marketData);
+      // Check if it's a plain symbol (just one word, 3-12 characters)
+      const isPlainSymbol = /^[A-Z0-9]{3,12}$/i.test(text);
+      if (isPlainSymbol && parts.length === 1) {
+        await handleSymbolSearch(chatId, symbol, botType, token, settings, mainReplyMenu);
+      } else {
+        const tf = parts[1] || settings.timeframe;
+        const mode = (parts[2] === "OFFLINE" || parts[2] === "SMC") ? "OFFLINE_RULES" : settings.engineMode;
 
-        saveToHistory(chatId, setup);
+        try {
+          const marketData = await fetchLiveMarketData(symbol);
+          const setup = await generateAITradingAnalysis({
+            symbol,
+            timeframe: tf,
+            engineMode: mode,
+            timeHorizon: settings.timeHorizon,
+            strategy: settings.strategy,
+            actionPreference: settings.directionPreference,
+            riskSettings: {
+              profile: settings.riskProfile,
+              maxRiskPercent: settings.riskPercent,
+              maxLeverage: settings.leverage,
+              minRRRatio: settings.minRRRatio,
+              tpStyle: settings.tpStyle,
+            }
+          }, marketData);
 
-        const setupMsg = botType === "telegram" ? setup.telegramMessage : setup.baleMessage;
+          saveToHistory(chatId, setup);
 
-        await sendMessage(chatId.toString(), setupMsg, {
-          inlineKeyboard: [
-            [
-              { text: `🧠 بررسی با هوش مصنوعی`, callback_data: `/analyze ${symbol} ${tf} ONLINE_AI` },
-              { text: `📚 بررسی با دانش آفلاین (SMC)`, callback_data: `/analyze ${symbol} ${tf} OFFLINE_RULES` },
+          const setupMsg = botType === "telegram" ? setup.telegramMessage : setup.baleMessage;
+
+          await sendMessage(chatId.toString(), setupMsg, {
+            inlineKeyboard: [
+              [
+                { text: `🧠 بررسی با هوش مصنوعی`, callback_data: `/analyze ${symbol} ${tf} ONLINE_AI` },
+                { text: `📚 بررسی با دانش آفلاین (SMC)`, callback_data: `/analyze ${symbol} ${tf} OFFLINE_RULES` },
+              ],
+              [
+                { text: "🧮 محاسبه حجم", callback_data: `/calc_setup ${symbol} ${setup.optimalEntry} ${setup.stopLoss.price}` },
+                { text: "🎯 اسکنر بازار", callback_data: "/scanner" },
+              ],
             ],
-            [
-              { text: "🧮 محاسبه حجم", callback_data: `/calc_setup ${symbol} ${setup.optimalEntry} ${setup.stopLoss.price}` },
-              { text: "🎯 اسکنر بازار", callback_data: "/scanner" },
-            ],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } catch (err) {
-        await sendMessage(chatId.toString(), `❌ نماد یا دارایی **"${symbol}"** یافت نشد یا در پردازش آن خطایی رخ داد.`, { replyKeyboard: mainReplyMenu });
+            replyKeyboard: mainReplyMenu,
+          });
+        } catch (err) {
+          await sendMessage(chatId.toString(), `❌ نماد یا دارایی **"${symbol}"** یافت نشد یا در پردازش آن خطایی رخ داد.`, { replyKeyboard: mainReplyMenu });
+        }
       }
     }
   } catch (err) {
