@@ -401,9 +401,12 @@ export async function scanAuthenticMarketOpportunities(
   timeframe: string = "15m",
   userSettings?: any
 ): Promise<MarketOpportunityResult[]> {
-  const pool = (candidateSymbols && candidateSymbols.length > 0)
+  const rawPool = (candidateSymbols && candidateSymbols.length > 0)
     ? candidateSymbols
     : ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'DOGEUSDT', 'ADAUSDT', 'SUIUSDT', 'PEPEUSDT', 'AVAXUSDT', 'LINKUSDT', 'NEARUSDT', 'XAUUSD'];
+
+  // Filter out stock symbols like TSLA to focus on active Crypto/Forex/Gold
+  const pool = Array.from(new Set(rawPool)).filter(s => !['TSLA', 'NVDA', 'AAPL', 'MSFT'].includes(s.toUpperCase()));
 
   const results: MarketOpportunityResult[] = [];
 

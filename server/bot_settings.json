@@ -1,0 +1,37 @@
+{
+  "__global_config__": {
+    "telegramToken": "",
+    "telegramChatId": "",
+    "telegramEnabled": true,
+    "baleToken": "",
+    "baleChatId": "",
+    "baleEnabled": true,
+    "autoBroadcast": false,
+    "defaultTimeframe": "15m",
+    "defaultRiskPercent": 2,
+    "riskSettings": {
+      "profile": "moderate",
+      "maxRiskPercent": 2,
+      "maxLeverage": 15,
+      "minRRRatio": 2.5,
+      "tpStyle": "balanced"
+    },
+    "autoHunter": {
+      "enabled": false,
+      "intervalMinutes": 3,
+      "watchlist": [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+        "XAUUSD",
+        "XRPUSDT",
+        "DOGEUSDT",
+        "ADAUSDT",
+        "EURUSD"
+      ],
+      "minGrade": "A",
+      "autoBroadcastToTelegram": false,
+      "autoBroadcastToBale": false
+    }
+  }
+}

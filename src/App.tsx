@@ -125,10 +125,13 @@ export default function App() {
             minRRRatio: 2.5,
             tpStyle: 'balanced',
           },
-          autoHunter: parsed.autoHunter || {
+          autoHunter: (parsed.autoHunter && parsed.autoHunter.watchlist) ? {
+            ...parsed.autoHunter,
+            watchlist: parsed.autoHunter.watchlist.filter((s: string) => !['TSLA', 'NVDA', 'AAPL', 'MSFT'].includes(s.toUpperCase())),
+          } : {
             enabled: false,
             intervalMinutes: 3,
-            watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'NVDA', 'TSLA', 'DOGEUSDT', 'EURUSD'],
+            watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'EURUSD'],
             minGrade: 'A',
             autoBroadcastToTelegram: false,
             autoBroadcastToBale: false,
@@ -156,7 +159,7 @@ export default function App() {
       autoHunter: {
         enabled: false,
         intervalMinutes: 3,
-        watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'NVDA', 'TSLA', 'DOGEUSDT', 'EURUSD'],
+        watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'EURUSD'],
         minGrade: 'A',
         autoBroadcastToTelegram: false,
         autoBroadcastToBale: false,

@@ -125,7 +125,8 @@ export function startBackgroundHunter() {
         if (chatId === "__global_config__") continue;
         const settings = settingsStore[chatId];
         if (settings.autoHunterEnabled) {
-          const watchlist = settings.watchlist || [];
+          const rawWl = settings.watchlist || [];
+          const watchlist = rawWl.filter((s: string) => !['TSLA', 'NVDA', 'AAPL', 'MSFT'].includes(s.toUpperCase()));
           for (const symbol of watchlist.slice(0, 6)) {
             try {
               const marketData = await fetchLiveMarketData(symbol);
@@ -141,9 +142,9 @@ export function startBackgroundHunter() {
               }, marketData);
               
               if ((setup.grade === "A+" || setup.grade === "A") && setup.action !== "WAIT") {
-                const cacheKey = `${chatId}_${symbol}_${setup.action}_${setup.grade}`;
+                const cacheKey = `${chatId}_${symbol}_${setup.action}`;
                 const lastSent = hunterAlertCache.get(cacheKey);
-                if (!lastSent || Date.now() - lastSent > 2 * 60 * 60 * 1000) {
+                if (!lastSent || Date.now() - lastSent > 6 * 60 * 60 * 1000) {
                   hunterAlertCache.set(cacheKey, Date.now());
                   
                   const alertMsg = `🔔 **[شکارچی خودکار - ستاپ A+ شکار شد]**\n\n` + setup.telegramMessage;

@@ -62,7 +62,7 @@ const DEFAULT_SETTINGS: ChatSettings = {
   strategy: 'SMC & Price Action (Smart Money Concepts)',
   riskPercent: 2,
   balance: 1000,
-  watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'NVDA', 'TSLA', 'DOGEUSDT', 'EURUSD'],
+  watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'EURUSD'],
   autoHunterEnabled: false,
   directionPreference: 'AUTO',
   timeHorizon: 'intraday_hours',
@@ -97,7 +97,7 @@ const DEFAULT_GLOBAL_CONFIG: GlobalBotConfig = {
   autoHunter: {
     enabled: false,
     intervalMinutes: 3,
-    watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'NVDA', 'TSLA', 'DOGEUSDT', 'EURUSD'],
+    watchlist: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XAUUSD', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'EURUSD'],
     minGrade: 'A',
     autoBroadcastToTelegram: false,
     autoBroadcastToBale: false,

@@ -98,8 +98,8 @@ export const BotSimulator: React.FC<BotSimulatorProps> = ({
       return 'bg-rose-950/85 hover:bg-rose-900/95 text-rose-100 border-2 border-rose-500/70 shadow-[0_4px_18px_rgba(244,63,94,0.35)] hover:shadow-[0_6px_24px_rgba(244,63,94,0.5)]';
     }
     
-    // Amber / Gold / Rules / BTC Glass
-    if (style === 'warning' || t.includes('قوانین') || t.includes('مسئولیت') || t.includes('btc') || t.includes('بیت') || t.includes('طلا') || t.includes('xau')) {
+    // Amber / Gold / Rules / BTC / Admin Glass
+    if (style === 'warning' || t.includes('قوانین') || t.includes('مسئولیت') || t.includes('btc') || t.includes('بیت') || t.includes('طلا') || t.includes('xau') || t.includes('ادمین') || t.includes('admin') || t.includes('مدیریت')) {
       return 'bg-amber-950/85 hover:bg-amber-900/95 text-amber-100 border-2 border-amber-500/70 shadow-[0_4px_18px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_24px_rgba(245,158,11,0.5)]';
     }
     
@@ -570,6 +570,18 @@ export const BotSimulator: React.FC<BotSimulatorProps> = ({
                   <Scale className="w-4 h-4" />
                 </div>
                 <span className="truncate font-bold">⚖️ قوانین حقوقی</span>
+              </button>
+
+              {/* 10. Gold & Amber / Admin Settings Panel */}
+              <button
+                onClick={() => handleCommandClick('👑 پنل مدیریت ادمین')}
+                disabled={isLoading}
+                className="p-3 rounded-2xl bg-amber-950/90 hover:bg-amber-900/95 border-2 border-amber-400 text-amber-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_22px_rgba(245,158,11,0.45)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.6)] active:scale-95 disabled:opacity-50 col-span-2 sm:col-span-3 justify-center"
+              >
+                <div className="w-7 h-7 rounded-xl bg-amber-500/30 flex items-center justify-center shrink-0 border border-amber-300 text-amber-300">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <span className="truncate font-bold text-sm">👑 پنل مدیریت ادمین (Admin Panel)</span>
               </button>
             </div>
           </div>

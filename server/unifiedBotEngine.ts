@@ -389,7 +389,7 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
       engineButtonsRow,
       [{ text: "⚙️ تنظیمات ریسک و سود" }, { text: "🧮 محاسبه حجم و مارجین" }],
       [{ text: "🔍 واچ‌لیست دیده‌بان" }, { text: "📂 تاریخچه و ژورنال" }],
-      [{ text: "⚖️ قوانین و سلب مسئولیت حقوقی" }],
+      [{ text: "👑 پنل مدیریت ادمین" }, { text: "⚖️ قوانین و سلب مسئولیت حقوقی" }],
     ];
 
     if (callbackQuery) {
