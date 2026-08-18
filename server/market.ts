@@ -8,6 +8,8 @@ export interface LiveTickerData {
   low24h: number;
   volume24h: string;
   tvSymbol: string;
+  isLiveFeed?: boolean;
+  lastUpdated?: number;
   indicators: {
     rsi14: number;
     macd: { line: number; signal: number; hist: number };
@@ -61,7 +63,7 @@ export async function fetchLiveMarketData(symbol: string): Promise<LiveTickerDat
         const low24h = parseFloat(data.lowPrice);
         const volume24h = (parseFloat(data.quoteVolume) / 1_000_000).toFixed(1) + 'M $';
 
-        return generateTickerWithIndicators(cleanSymbol, cleanSymbol, 'crypto', `BINANCE:${cleanSymbol}`, price, change24h, high24h, low24h, volume24h);
+        return generateTickerWithIndicators(cleanSymbol, cleanSymbol, 'crypto', `BINANCE:${cleanSymbol}`, price, change24h, high24h, low24h, volume24h, true);
       }
     } catch {
       // Fallback below
@@ -78,12 +80,12 @@ export async function fetchLiveMarketData(symbol: string): Promise<LiveTickerDat
     const low24h = price * 0.97;
     const volume24h = '450.2M $';
 
-    return generateTickerWithIndicators(found.symbol, found.name, found.category, found.tvSymbol, price, change24h, high24h, low24h, volume24h);
+    return generateTickerWithIndicators(found.symbol, found.name, found.category, found.tvSymbol, price, change24h, high24h, low24h, volume24h, false);
   }
 
   // Generic fallback
   const defaultPrice = 100;
-  return generateTickerWithIndicators(cleanSymbol, cleanSymbol, 'crypto', `BINANCE:${cleanSymbol}`, defaultPrice, 1.5, defaultPrice * 1.04, defaultPrice * 0.96, '50M $');
+  return generateTickerWithIndicators(cleanSymbol, cleanSymbol, 'crypto', `BINANCE:${cleanSymbol}`, defaultPrice, 1.5, defaultPrice * 1.04, defaultPrice * 0.96, '50M $', false);
 }
 
 function generateTickerWithIndicators(
@@ -95,7 +97,8 @@ function generateTickerWithIndicators(
   change24h: number,
   high24h: number,
   low24h: number,
-  volume24h: string
+  volume24h: string,
+  isLiveFeed: boolean = false
 ): LiveTickerData {
   const rsi = Math.round(35 + (Math.sin(Date.now() / 15000) * 25) + (change24h > 0 ? 15 : -10));
   const boundedRsi = Math.max(15, Math.min(85, rsi));
@@ -121,6 +124,8 @@ function generateTickerWithIndicators(
     low24h: Number(low24h.toFixed(price > 10 ? 2 : 6)),
     volume24h,
     tvSymbol,
+    isLiveFeed,
+    lastUpdated: Date.now(),
     indicators: {
       rsi14: boundedRsi,
       macd: {

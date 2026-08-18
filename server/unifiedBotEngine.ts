@@ -222,26 +222,26 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
         await sendMessage(chatId.toString(), welcome, {
           inlineKeyboard: [
             [
-              { text: "🧠 𝖮𝖭𝖫𝖨𝖭𝖤 | 🟡 تحلیل هوش مصنوعی BTC", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
+              { text: "🧠 𝖮𝖭𝖫𝖨𝖭𝖤 | 🟡 تحلیل هوش مصنوعی BTC", callback_data: "/analyze BTCUSDT 15m ONLINE_AI", style: "success" },
             ],
             [
-              { text: "📚 𝖮𝖥𝖥𝖫𝖨𝖭𝖤 | 🟡 ستاپ آفلاین SMC BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
+              { text: "📚 𝖮𝖥𝖥𝖫𝖨𝖭𝖤 | 🟡 ستاپ آفلاین SMC BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES", style: "primary" },
             ],
             [
-              { text: "🔵 تحلیل زنده ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
-              { text: "🟣 تحلیل زنده SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
+              { text: "🔵 تحلیل زنده ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI", style: "success" },
+              { text: "🟣 تحلیل زنده SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI", style: "success" },
             ],
             [
-              { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" },
-              { text: "⚙️ تنظیمات کاربری و ریسک", callback_data: "/settings_risk" },
+              { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner", style: "success" },
+              { text: "⚙️ تنظیمات کاربری و ریسک", callback_data: "/settings_risk", style: "primary" },
             ],
             [
-              { text: "🔔 شکارچی خودکار (Hunter)", callback_data: "/menu_hunter" },
-              { text: "🧮 محاسبه حجم معامله (Calc)", callback_data: "/calc" },
+              { text: "🔔 شکارچی خودکار (Hunter)", callback_data: "/menu_hunter", style: "primary" },
+              { text: "🧮 محاسبه حجم معامله (Calc)", callback_data: "/calc", style: "primary" },
             ],
             [
-              { text: "📂 ژورنال معاملات چت", callback_data: "/history_menu" },
-              { text: "🔍 مدیریت واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }
+              { text: "📂 ژورنال معاملات چت", callback_data: "/history_menu", style: "primary" },
+              { text: "🔍 مدیریت واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu", style: "primary" }
             ],
           ],
           replyKeyboard: mainReplyMenu,
@@ -1109,26 +1109,26 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
       await sendMessage(chatId.toString(), welcome, {
         inlineKeyboard: [
           [
-            { text: "🧠 𝖮𝖭𝖫𝖨𝖭𝖤 | 🟡 تحلیل هوش مصنوعی BTC", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
+            { text: "🧠 𝖮𝖭𝖫𝖨𝖭𝖤 | 🟡 تحلیل هوش مصنوعی BTC", callback_data: "/analyze BTCUSDT 15m ONLINE_AI", style: "success" },
           ],
           [
-            { text: "📚 𝖮𝖥𝖥𝖫𝖨𝖭𝖤 | 🟡 ستاپ آفلاین SMC BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
+            { text: "📚 𝖮𝖥𝖥𝖫𝖨𝖭𝖤 | 🟡 ستاپ آفلاین SMC BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES", style: "primary" },
           ],
           [
-            { text: "🔵 تحلیل زنده ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
-            { text: "🟣 تحلیل زنده SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
+            { text: "🔵 تحلیل زنده ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI", style: "success" },
+            { text: "🟣 تحلیل زنده SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI", style: "success" },
           ],
           [
-            { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" },
-            { text: "⚙️ تنظیمات کاربری و ریسک", callback_data: "/settings_risk" },
+            { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner", style: "success" },
+            { text: "⚙️ تنظیمات کاربری و ریسک", callback_data: "/settings_risk", style: "primary" },
           ],
           [
-            { text: "🔔 شکارچی خودکار (Hunter)", callback_data: "/menu_hunter" },
-            { text: "🧮 محاسبه حجم معامله (Calc)", callback_data: "/calc" },
+            { text: "🔔 شکارچی خودکار (Hunter)", callback_data: "/menu_hunter", style: "primary" },
+            { text: "🧮 محاسبه حجم معامله (Calc)", callback_data: "/calc", style: "primary" },
           ],
           [
-            { text: "📂 ژورنال معاملات چت", callback_data: "/history_menu" },
-            { text: "🔍 مدیریت واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu" }
+            { text: "📂 ژورنال معاملات چت", callback_data: "/history_menu", style: "primary" },
+            { text: "🔍 مدیریت واچ‌لیست دیده‌بان", callback_data: "/watchlist_menu", style: "primary" }
           ],
         ],
         replyKeyboard: mainReplyMenu,
@@ -1166,19 +1166,19 @@ export async function handleBotUpdate(botType: "telegram" | "bale", token: strin
         ],
         replyKeyboard: mainReplyMenu,
       });
-    } else if (text === "🎯 اسکنر هوشمند بازار") {
+    } else if (text === "🎯 اسکنر هوشمند بازار" || text === "/scanner") {
       await runAction(chatId, "/scanner");
-    } else if (text === "⚙️ تنظیمات ریسک و سود") {
+    } else if (text === "⚙️ تنظیمات ریسک و سود" || text === "/settings" || text === "/settings_risk") {
       await runAction(chatId, "/settings_risk");
     } else if (text === "🧮 محاسبه حجم و مارجین") {
       await runCommand(chatId, "/calc");
-    } else if (text === "🔔 شکار خودکار فرصت‌ها") {
+    } else if (text === "🔔 شکار خودکار فرصت‌ها" || text === "/menu_hunter") {
       await runAction(chatId, "/menu_hunter");
-    } else if (text === "🔍 واچ‌لیست دیده‌بان") {
+    } else if (text === "🔍 واچ‌لیست دیده‌بان" || text === "/watchlist" || text === "/watchlist_menu") {
       await runAction(chatId, "/watchlist_menu");
-    } else if (text === "📂 تاریخچه و ژورنال") {
+    } else if (text === "📂 تاریخچه و ژورنال" || text === "/journal" || text === "/history_menu") {
       await runAction(chatId, "/history_menu");
-    } else if (text === "⚖️ قوانین و سلب مسئولیت حقوقی") {
+    } else if (text === "⚖️ قوانین و سلب مسئولیت حقوقی" || text === "/rules") {
       await sendMessage(chatId.toString(), legalRulesMessage, {
         inlineKeyboard: [
           [{ text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" }, { text: "⚙️ تنظیمات ریسک", callback_data: "/settings_risk" }],

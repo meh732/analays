@@ -226,47 +226,61 @@ export function generateOfflineTradingSetup(
   const rrRatio = Number((tp2Percent / slPct).toFixed(1));
   const cleanSym = marketData.symbol.replace(/[^a-zA-Z0-9]/g, "");
 
-  // 5. Educational Explanations (دانشنامه و آموزش متدولوژی)
+  // 5. Dynamic Date & Time formatting for Tehran
+  const dateStr = new Date().toLocaleString("fa-IR", {
+    timeZone: "Asia/Tehran",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  // 6. Educational Explanations (دانشنامه و آموزش متدولوژی)
   const educationalFa = `📚 **دانش و منطق معاملاتی ستاپ (${action === "LONG" ? "خرید لانگ" : "فروش شورت"}):**
+تاریخ تحلیل: ${dateStr} (به وقت تهران)
 ۱. **افق زمانی و ماندگاری در پوزیشن:** این ستاپ بر اساس تایم‌فریم ${tf} و افق ${timing.horizonLabelFa} طراحی شده است (مدت تخمینی نگهداری: ${timing.estimatedHoldingTimeFa}).
 ۲. **هانت نقدینگی و ساختار اسمارت‌مانی (SMC):** قیمت با نزدیک شدن به اردربلاک ${isBullish ? "تقاضا (Demand OB)" : "عرضه (Supply OB)"}، استاپ‌های نقدینگی را جذب کرده و آماده حرکت پرقدرت است.
 ۳. **ناحیه بهینه ورود فیبوناچی (OTE):** محدوده ورود در منطقه تعادلی و تلاقی با میانگین EMA20 قرار دارد.
 ۴. **تاییدیه شاخص RSI (${rsi.toFixed(1)}):** وضعیت مومنتوم ${rsiCondition} است که ریسک به ریوارد 1:${rrRatio} را از لحاظ آماری تضمین می‌کند.
 ۵. **مدیریت پوزیشن حرفه‌ای:** در TP1 نیمی از حجم بسته و استاپ به نقطه ورود (Breakeven) منتقل می‌شود تا معامله ۱۰۰٪ بدون ریسک (Risk-Free) ادامه یابد.`;
 
-  // 6. Telegram and Bale Formatted Messages
+  // 7. Telegram and Bale Formatted Messages
   const telegramMessage = `🎯 **سیگنال تریدینگ‌ویو (موتور دانش و قوانین آفلاین)** 🎯
+📅 **زمان تحلیل:** ${dateStr} (به وقت تهران)
 📚 **حالت سیگنال‌دهی:** استراتژی آفلاین و قوانین پرایس‌اکشن (SMC)
 🔹 **نماد:** #${cleanSym} | تایم‌فریم: ${tf}
 ⏱️ **افق زمانی ورود و خروج:** ${timing.horizonLabelFa}
 ⚡ **جهت پوزیشن:** ${action === "LONG" ? "🟢 لانگ (LONG)" : "🔴 شورت (SHORT)"}
 📊 **گرید ستاپ:** 🌟 A+ | پروفایل: ${profileLabel}
-
+  
 📍 **محدوده ورود (Entry Zone):** $${entryLow} - $${entryHigh}
 ⏳ **مهلت ورود معتبر:** ${timing.entryValidityWindowFa}
 ⏱️ **مدت تخمینی نگهداری:** ${timing.estimatedHoldingTimeFa}
-
+  
 🎯 **تارگت اول (TP1):** $${tp1} (+${tp1Percent}% | زمان: ${timing.tp1EstimatedTimeFa} | سیو ۵۰٪)
 🎯 **تارگت دوم (TP2):** $${tp2} (+${tp2Percent}% | زمان: ${timing.tp2EstimatedTimeFa} | مقاومت ماژور)
 🚀 **تارگت نهایی (TP3):** $${tp3} (+${tp3Percent}% | زمان: ${timing.tp3EstimatedTimeFa} | موج گسترده)
 🛑 **حد ضرر (Stop Loss):** $${sl} (-${slPct}%)
-
+  
 ❌ **ابطال زمانی:** ${timing.invalidationTimeoutFa}
 ⚖️ **اهرم مجاز:** ${levText}
 💎 **نسبت ریسک به ریوارد (R:R):** 1:${rrRatio}
 💰 **مدیریت ریسک:** حداکثر ${req.riskSettings?.maxRiskPercent || 2}٪ از کل بالانس
-
+  
 📖 **تحلیل و آموزش تکنیکال:**
 ${appliedRules.map(r => `• ${r.nameFa}: ${r.explanationFa}`).join("\n")}
-
+  
 ⚖️ *سلب مسئولیت: تصمیم نهایی معامله و مدیریت سرمایه با کاربر است و سازنده هیچ سهمی از سود معاملات ندارد.*
 🤖 *ربات تحلیلی تریدینگ‌ویو (تلگرام و بله)*`;
 
   const baleMessage = `🔔 **سیگنال استراتژی آفلاین تریدینگ‌ویو (بله)**
+📅 **زمان تحلیل:** ${dateStr} (به وقت تهران)
 📚 متدولوژی: پرایس‌اکشن و اسمارت‌مانی (SMC Engine)
 جفت‌ارز: #${cleanSym} | تایم: ${tf} | افق زمانی: ${timing.horizonLabelFa}
 موقعیت: ${action === "LONG" ? "خرید لانگ (LONG)" : "فروش شورت (SHORT)"}
-
+  
 ▪️ زون ورود: $${entryLow} تا $${entryHigh}
 ▪️ مهلت ورود: ${timing.entryValidityWindowFa}
 ▪️ مدت پوزیشن: ${timing.estimatedHoldingTimeFa}
@@ -276,7 +290,7 @@ ${appliedRules.map(r => `• ${r.nameFa}: ${r.explanationFa}`).join("\n")}
 ▪️ حد ضرر: $${sl} (-${slPct}%)
 ▪️ لوریج پیشنهادی: ${levValue}x | نسبت R:R: 1:${rrRatio}
 ▪️ ابطال زمانی: ${timing.invalidationTimeoutFa}
-
+  
 📌 *آموزش ستاپ:* ورود با تاییدیه اردربلاک نهادی. خروج پله‌ای و سیو سود در TP1 الزامی است.`;
 
   return {
@@ -333,7 +347,7 @@ ${appliedRules.map(r => `• ${r.nameFa}: ${r.explanationFa}`).join("\n")}
     leverageValue: levValue,
     riskRewardRatio: rrRatio,
     trend: isBullish ? "BULLISH" : "BEARISH",
-    analysisFa: `تحلیل آفلاین بر مبنای قوانین اسمارت‌مانی (SMC) با افق زمانی ${timing.horizonLabelFa}: قیمت در منطقه بهینه نقدینگی قرار گرفته و با تشکیل کندل تاییدیه بر روی میانگین متحرک، وارد موج شتاب‌دار شده است.`,
+    analysisFa: `تحلیل آفلاین در تاریخ ${dateStr} (به وقت تهران) بر مبنای قوانین اسمارت‌مانی (SMC) با افق زمانی ${timing.horizonLabelFa}: قیمت در منطقه بهینه نقدینگی قرار گرفته و با تشکیل کندل تاییدیه بر روی میانگین متحرک، وارد موج شتاب‌دار شده است.`,
     analysisEn: `Quantitative rule-based analysis: Institutional Order Block retest on ${tf} with expected holding period of ${timing.estimatedHoldingTimeEn}.`,
     indicatorsSummary: {
       rsi,

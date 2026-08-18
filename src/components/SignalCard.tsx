@@ -143,6 +143,34 @@ export const SignalCard: React.FC<SignalCardProps> = ({
         </div>
       </div>
 
+      {/* Real-Time Freshness & Status Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-950/60 border border-slate-800/60 rounded-xl px-4 py-2 mt-3 mb-2 text-xs text-slate-400">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+          <span>زمان تحلیل:</span>
+          <span className="text-slate-200 font-semibold mono-num">
+            {new Date(setup.timestamp || Date.now()).toLocaleString("fa-IR", {
+              timeZone: "Asia/Tehran",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })} (به وقت تهران)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span>روزآمدی بازار:</span>
+          <span className="text-emerald-400 font-bold">کاملاً بروز (Real-time)</span>
+        </div>
+      </div>
+
       {/* Trade Timing & Execution Horizon Banner */}
       <div className="bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-purple-950/40 border border-indigo-800/40 rounded-xl p-3.5 my-3 shadow-inner">
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs">

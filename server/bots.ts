@@ -9,6 +9,7 @@ export interface BotInlineButton {
   text: string;
   callback_data?: string;
   url?: string;
+  style?: 'primary' | 'danger' | 'success';
 }
 
 export interface BotReplyButton {

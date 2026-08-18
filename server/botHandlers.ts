@@ -53,6 +53,7 @@ export async function startTelegramPollingLoop() {
   
   try {
     await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, { method: "POST" });
+    await setBotCommands(token);
   } catch {}
   
   let offset = 0;

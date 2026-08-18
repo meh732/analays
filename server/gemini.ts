@@ -145,8 +145,23 @@ Provide the output strictly compliant with the JSON schema.
     aggressive: 'حالت سوددهی تهاجمی و اسکلپ پربازده (Aggressive/High Yield): سواری بر امواج پرقدرت، تارگت‌های بزرگتر TP3 (Wave Expansion) یا اسکلپ‌های سریع، اهرم بالا (15x تا 30x)، ریسک به ریوارد 1:3.5 به بالا.',
   };
 
+  const tehranDateStr = new Date().toLocaleString("fa-IR", {
+    timeZone: "Asia/Tehran",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
   const promptContent = `
 Analyze the asset ${marketData.symbol} (${marketData.name}) on TradingView chart timeframe ${timeframe}.
+
+Current Time of Analysis Grounding:
+- Current UTC Date & Time: ${new Date().toISOString()}
+- Current Persian Date & Time: ${tehranDateStr} (Tehran Time Zone)
+- Grounding Year: 2026 (August 18, 2026)
 
 Target Execution Horizon: ${timing.horizonLabelEn} (${timing.horizonLabelFa})
 - Expected Holding Time: ${timing.estimatedHoldingTimeFa}
@@ -172,14 +187,17 @@ Live Market Context:
 - Additional Notes: ${req.userNotes || 'None'}
 
 Rules for the Trade Setup:
-1. Calculate exact numerical Entry Zone (min to max), Optimal Entry price tailored to the ${profile} risk profile and timing horizon (${timing.horizonLabelFa}).
-2. For LONG: Optimal Entry ≤ Current Price, TP1 > TP2 > TP3 > Entry, SL < Entry.
-3. For SHORT: Optimal Entry ≥ Current Price, TP1 < TP2 < TP3 < Entry, SL > Entry.
-4. If market is indecisive or in chop zone without edge, mark action as 'WAIT' or set a clear limit breakout trigger.
-5. Provide 3 TP targets matching the ${profile} mode (TP1: safe lock, TP2: target resistance, TP3: runner extension). Include timing estimates in descriptions.
-6. Calculate realistic stop loss just beyond the nearest Order Block / Swing invalidation level.
-7. Recommended leverage must not exceed ${maxLev}x and fit the ${profile} mode.
-8. Format 'telegramMessage' and 'baleMessage' with emoji headers, timing label (⏱️ ${timing.horizonLabelFa}), entry validity (${timing.entryValidityWindowFa}), copyable prices, bold labels, tags (#${marketData.symbol.replace(/[^A-Z]/g, '')}), clear leverage guidance, and standard legal disclaimer.
+1. Ground your entire analysis in the exact date and time provided above (${tehranDateStr} in Persian, year 2026). Do not refer to previous years like 2024 or 2025.
+2. You MUST prefix both 'telegramMessage' and 'baleMessage' with the exact Persian analysis date line: "📅 **زمان تحلیل:** ${tehranDateStr} (به وقت تهران)" right below the title.
+3. You MUST include "تحلیل در تاریخ ${tehranDateStr}" in the Farsi 'analysisFa' field to indicate freshness.
+4. Calculate exact numerical Entry Zone (min to max), Optimal Entry price tailored to the ${profile} risk profile and timing horizon (${timing.horizonLabelFa}).
+5. For LONG: Optimal Entry ≤ Current Price, TP1 > TP2 > TP3 > Entry, SL < Entry.
+6. For SHORT: Optimal Entry ≥ Current Price, TP1 < TP2 < TP3 < Entry, SL > Entry.
+7. If market is indecisive or in chop zone without edge, mark action as 'WAIT' or set a clear limit breakout trigger.
+8. Provide 3 TP targets matching the ${profile} mode (TP1: safe lock, TP2: target resistance, TP3: runner extension). Include timing estimates in descriptions.
+9. Calculate realistic stop loss just beyond the nearest Order Block / Swing invalidation level.
+10. Recommended leverage must not exceed ${maxLev}x and fit the ${profile} mode.
+11. Format 'telegramMessage' and 'baleMessage' with emoji headers, timing label (⏱️ ${timing.horizonLabelFa}), entry validity (${timing.entryValidityWindowFa}), copyable prices, bold labels, tags (#${marketData.symbol.replace(/[^A-Z]/g, '')}), clear leverage guidance, and standard legal disclaimer.
 `;
 
   try {
