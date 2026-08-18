@@ -32,6 +32,8 @@ fi
 
 TG_TOKEN="${TELEGRAM_BOT_TOKEN}"
 TG_CHAT_ID="${TELEGRAM_CHAT_ID}"
+BALE_TOKEN="${BALE_BOT_TOKEN}"
+BALE_CHAT="${BALE_CHAT_ID}"
 
 echo "======================================================"
 echo "📦 Starting TradingView Bot Backup: ${TIMESTAMP}"
@@ -99,6 +101,16 @@ EOF
     fi
 else
     echo "ℹ️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured in .env; backup stored locally."
+fi
+
+# Send notification to Bale Admin if configured
+if [ -n "${BALE_TOKEN}" ] && [ -n "${BALE_CHAT}" ]; then
+    echo "📤 Sending backup notification to Bale Admin (${BALE_CHAT})..."
+    BALE_CLEAN_TOKEN="${BALE_TOKEN#bot}"
+    BALE_TEXT="📦 پشتیبان‌گیری سیستم تریدینگ‌ویو انجام شد.\n\n🔹 دلیل: ${REASON}\n📅 تاریخ: ${HUMAN_DATE}\n🖥️ سرور: $(hostname)\n📦 فایل: ${BACKUP_NAME} (${BACKUP_SIZE})\n✅ فایل کامل بکاپ به تلگرام ادمین ارسال گردید."
+    curl -s -X POST "https://tapi.bale.ai/bot${BALE_CLEAN_TOKEN}/sendMessage" \
+        -H "Content-Type: application/json" \
+        -d "{\"chat_id\":\"${BALE_CHAT}\",\"text\":\"${BALE_TEXT}\"}" >/dev/null 2>&1 || true
 fi
 
 # Keep only the last 20 local backups to save disk space

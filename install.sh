@@ -17,16 +17,21 @@ WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# Determine Paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="${SCRIPT_DIR}"
+# Repository and Directory Setup
+REPO_URL="https://github.com/meh732/analays.git"
+DEFAULT_INSTALL_DIR="/opt/tradingview-bot"
+
+# Check if running in existing project or via curl pipe
+if [ -f "./package.json" ] && [ -f "./server.ts" ]; then
+    PROJECT_DIR="$(pwd)"
+elif [ -d "${DEFAULT_INSTALL_DIR}" ] && [ -f "${DEFAULT_INSTALL_DIR}/package.json" ]; then
+    PROJECT_DIR="${DEFAULT_INSTALL_DIR}"
+else
+    PROJECT_DIR="${DEFAULT_INSTALL_DIR}"
+fi
+
 SERVICE_NAME="tradingview-bot"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-
-cd "${PROJECT_DIR}"
-
-# Ensure helper scripts have execution permissions
-chmod +x "${PROJECT_DIR}/scripts/"*.sh 2>/dev/null || true
 
 # Header Banner
 show_banner() {
@@ -133,48 +138,62 @@ configure_environment() {
         CURR_PORT="${PORT:-3000}"
     fi
 
-    echo -e "${YELLOW}برای تایید مقدار پیش‌فرض/فعلی، کلید [Enter] را فشار دهید.${NC}\n"
+    echo -e "${YELLOW}برای تایید یا حفظ مقدار پیش‌فرض/فعلی، کلید [Enter] را فشار دهید.${NC}\n"
 
-    # 1. Telegram Bot Token
-    read -r -p "1. توکن ربات تلگرام (Telegram Bot Token) [${CURR_TG_TOKEN:0:8}...]: " INPUT_TG_TOKEN
+    echo -e "${CYAN}------------------------------------------------------------${NC}"
+    echo -e "${BOLD}${BLUE}🔵 ۱. اطلاعات و کلیدهای ربات تلگرام (Telegram Bot):${NC}"
+    echo -e "${CYAN}------------------------------------------------------------${NC}"
+    read -r -p "🔹 توکن اختصاصی ربات تلگرام (از BotFather@): [${CURR_TG_TOKEN:0:10}...]: " INPUT_TG_TOKEN
     TELEGRAM_BOT_TOKEN="${INPUT_TG_TOKEN:-$CURR_TG_TOKEN}"
 
-    # 2. Admin Telegram Chat ID
-    read -r -p "2. آیدی عددی ادمین تلگرام (Admin Chat ID جهت ارسال بکاپ‌ها و مدیریت) [${CURR_TG_CHAT}]: " INPUT_TG_CHAT
+    read -r -p "🔹 آیدی عددی ادمین تلگرام (جهت دریافت بکاپ‌ها و مدیریت): [${CURR_TG_CHAT}]: " INPUT_TG_CHAT
     TELEGRAM_CHAT_ID="${INPUT_TG_CHAT:-$CURR_TG_CHAT}"
 
-    # 3. Custom Server Port
-    read -r -p "3. پورت اختصاصی نصب و سرور (Port) [${CURR_PORT}]: " INPUT_PORT
+    echo -e "\n${CYAN}------------------------------------------------------------${NC}"
+    echo -e "${BOLD}${GREEN}🟢 ۲. اطلاعات و کلیدهای پیام‌رسان بله (Bale Messenger):${NC}"
+    echo -e "${CYAN}------------------------------------------------------------${NC}"
+    read -r -p "🔹 توکن اختصاصی ربات بله (از BotFather در بله - اختیاری): [${CURR_BALE_TOKEN:0:10}...]: " INPUT_BALE_TOKEN
+    BALE_BOT_TOKEN="${INPUT_BALE_TOKEN:-$CURR_BALE_TOKEN}"
+
+    read -r -p "🔹 آیدی عددی ادمین / چت‌آیدی بله (جهت دریافت اعلان‌ها در بله - اختیاری): [${CURR_BALE_CHAT}]: " INPUT_BALE_CHAT
+    BALE_CHAT_ID="${INPUT_BALE_CHAT:-$CURR_BALE_CHAT}"
+
+    echo -e "\n${CYAN}------------------------------------------------------------${NC}"
+    echo -e "${BOLD}${WHITE}🌐 ۳. تنظیمات پورت سرور و شبکه (Server Port):${NC}"
+    echo -e "${CYAN}------------------------------------------------------------${NC}"
+    read -r -p "🔹 پورت اختصاصی سرور (پیش‌فرض: ۳۰۰۰): [${CURR_PORT}]: " INPUT_PORT
     PORT="${INPUT_PORT:-$CURR_PORT}"
-    # Validate port number
     if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [ "$PORT" -lt 1 ] || [ "$PORT" -gt 65535 ]; then
         echo -e "${YELLOW}⚠️ پورت نامعتبر است؛ مقدار پیش‌فرض ۳۰۰۰ انتخاب شد.${NC}"
         PORT=3000
     fi
 
-    # 4. Gemini API Key
-    read -r -p "4. کلید هوش مصنوعی جمینای (Gemini API Key) [${CURR_GEMINI:0:8}...]: " INPUT_GEMINI
+    echo -e "\n${CYAN}------------------------------------------------------------${NC}"
+    echo -e "${BOLD}${PURPLE}🤖 ۴. کلید هوش مصنوعی جمینای (Gemini AI Key):${NC}"
+    echo -e "${CYAN}------------------------------------------------------------${NC}"
+    read -r -p "🔹 کلید Gemini API Key (جهت تحلیل پرایس‌اکشن و فیوچرز): [${CURR_GEMINI:0:10}...]: " INPUT_GEMINI
     GEMINI_API_KEY="${INPUT_GEMINI:-$CURR_GEMINI}"
-
-    # 5. Bale Bot Token & Chat ID (Optional)
-    read -r -p "5. توکن ربات بله (Bale Token - اختیاری) [${CURR_BALE_TOKEN:0:8}...]: " INPUT_BALE_TOKEN
-    BALE_BOT_TOKEN="${INPUT_BALE_TOKEN:-$CURR_BALE_TOKEN}"
-
-    read -r -p "6. چت‌آیدی پیام‌رسان بله (Bale Chat ID - اختیاری) [${CURR_BALE_CHAT}]: " INPUT_BALE_CHAT
-    BALE_CHAT_ID="${INPUT_BALE_CHAT:-$CURR_BALE_CHAT}"
 
     cat <<EOF > "${PROJECT_DIR}/.env"
 # TradingView AI Bot Environment Configuration
-GEMINI_API_KEY=${GEMINI_API_KEY}
+# Telegram Credentials
 TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
 TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+
+# Bale Messenger Credentials
 BALE_BOT_TOKEN=${BALE_BOT_TOKEN}
 BALE_CHAT_ID=${BALE_CHAT_ID}
+
+# Server & AI Settings
 PORT=${PORT}
+GEMINI_API_KEY=${GEMINI_API_KEY}
 NODE_ENV=production
 EOF
 
-    echo -e "${GREEN}✅ فایل .env با موفقیت ذخیره شد (پورت انتخابی: ${PORT}).${NC}"
+    echo -e "\n${GREEN}✅ تمامی متغیرهای محیطی با موفقیت در فایل .env ذخیره شدند.${NC}"
+    echo -e "${WHITE}  - پورت سرور: ${PORT}${NC}"
+    echo -e "${WHITE}  - چت‌آیدی تلگرام: ${TELEGRAM_CHAT_ID:-'(تنظیم نشده)'}${NC}"
+    echo -e "${WHITE}  - چت‌آیدی بله: ${BALE_CHAT_ID:-'(تنظیم نشده)'}${NC}"
 }
 
 # Create and configure systemd service
@@ -239,6 +258,20 @@ action_install() {
     check_root_or_sudo
     check_and_install_dependencies
 
+    # Clone repository if needed
+    if [ ! -f "${PROJECT_DIR}/package.json" ]; then
+        echo -e "${BLUE}📥 Cloning repository from ${REPO_URL} to ${PROJECT_DIR}...${NC}"
+        run_elevated mkdir -p "${PROJECT_DIR}"
+        if [ "$EUID" -ne 0 ] && [ -n "$USER" ]; then
+            run_elevated chown -R "${USER}:${USER}" "${PROJECT_DIR}" 2>/dev/null || true
+        fi
+        git clone "${REPO_URL}" "${PROJECT_DIR}"
+    fi
+
+    cd "${PROJECT_DIR}"
+    chmod +x "${PROJECT_DIR}/scripts/"*.sh 2>/dev/null || true
+    chmod +x "${PROJECT_DIR}/install.sh" 2>/dev/null || true
+
     echo -e "\n${BLUE}📦 Installing npm dependencies...${NC}"
     npm install
 
@@ -250,6 +283,13 @@ action_install() {
     setup_systemd_service
     configure_firewall
 
+    # Create global CLI command (tvbot / analays)
+    if [ -d "/usr/local/bin" ]; then
+        run_elevated ln -sf "${PROJECT_DIR}/install.sh" /usr/local/bin/tvbot
+        run_elevated ln -sf "${PROJECT_DIR}/install.sh" /usr/local/bin/analays
+        run_elevated chmod +x /usr/local/bin/tvbot /usr/local/bin/analays 2>/dev/null || true
+    fi
+
     # Send confirmation to Telegram Admin
     if [ -f "${PROJECT_DIR}/scripts/backup.sh" ]; then
         bash "${PROJECT_DIR}/scripts/backup.sh" "نصب اولیه و راه‌اندازی موفقیت‌آمیز سرور"
@@ -260,6 +300,7 @@ action_install() {
     echo -e "${GREEN}🎉 نصب با موفقیت کامل انجام شد!${NC}"
     echo -e "${WHITE}آدرس سرور:${NC} http://localhost:${TARGET_PORT}"
     echo -e "${WHITE}وضعیت سرویس:${NC} sudo systemctl status ${SERVICE_NAME}"
+    echo -e "${WHITE}دستور مدیریت آسان:${NC} ${YELLOW}tvbot${NC} یا ${YELLOW}analays${NC}"
     echo -e "${CYAN}======================================================${NC}"
 
     read -r -p "آیا مایلید بکاپ خودکار دوره‌ای (مثلاً هر ۱۲ ساعت) فعال شود؟ (y/N): " SCHED_RESP
@@ -267,6 +308,7 @@ action_install() {
         action_schedule_backup
     fi
 }
+
 
 # Action 2: Update (With Automatic Telegram Backup Before Update)
 action_update() {
