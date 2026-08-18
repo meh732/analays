@@ -46,16 +46,84 @@ export const POPULAR_MARKETS: Array<{
   { symbol: 'BTCUSDT', name: 'Bitcoin', category: 'crypto', tvSymbol: 'BINANCE:BTCUSDT', basePrice: 96450 },
   { symbol: 'ETHUSDT', name: 'Ethereum', category: 'crypto', tvSymbol: 'BINANCE:ETHUSDT', basePrice: 2750 },
   { symbol: 'SOLUSDT', name: 'Solana', category: 'crypto', tvSymbol: 'BINANCE:SOLUSDT', basePrice: 195.4 },
-  { symbol: 'XRPUSDT', name: 'Ripple', category: 'crypto', tvSymbol: 'BINANCE:XRPUSDT', basePrice: 2.45 },
+  { symbol: 'XRPUSDT', name: 'Ripple (XRP)', category: 'crypto', tvSymbol: 'BINANCE:XRPUSDT', basePrice: 2.45 },
   { symbol: 'BNBUSDT', name: 'BNB', category: 'crypto', tvSymbol: 'BINANCE:BNBUSDT', basePrice: 660 },
   { symbol: 'DOGEUSDT', name: 'Dogecoin', category: 'crypto', tvSymbol: 'BINANCE:DOGEUSDT', basePrice: 0.265 },
+  { symbol: 'ADAUSDT', name: 'Cardano (ADA)', category: 'crypto', tvSymbol: 'BINANCE:ADAUSDT', basePrice: 0.78 },
   { symbol: 'SUIUSDT', name: 'Sui', category: 'crypto', tvSymbol: 'BINANCE:SUIUSDT', basePrice: 3.42 },
   { symbol: 'PEPEUSDT', name: 'Pepe', category: 'crypto', tvSymbol: 'BINANCE:PEPEUSDT', basePrice: 0.0000098 },
+  { symbol: 'TONUSDT', name: 'Toncoin', category: 'crypto', tvSymbol: 'BINANCE:TONUSDT', basePrice: 5.45 },
+  { symbol: 'SHIBUSDT', name: 'Shiba Inu', category: 'crypto', tvSymbol: 'BINANCE:SHIBUSDT', basePrice: 0.000021 },
+  { symbol: 'AVAXUSDT', name: 'Avalanche', category: 'crypto', tvSymbol: 'BINANCE:AVAXUSDT', basePrice: 28.5 },
+  { symbol: 'LINKUSDT', name: 'Chainlink', category: 'crypto', tvSymbol: 'BINANCE:LINKUSDT', basePrice: 18.2 },
+  { symbol: 'NEARUSDT', name: 'Near Protocol', category: 'crypto', tvSymbol: 'BINANCE:NEARUSDT', basePrice: 5.2 },
+  { symbol: 'TRXUSDT', name: 'TRON (TRX)', category: 'crypto', tvSymbol: 'BINANCE:TRXUSDT', basePrice: 0.238 },
+  { symbol: 'DOTUSDT', name: 'Polkadot', category: 'crypto', tvSymbol: 'BINANCE:DOTUSDT', basePrice: 7.2 },
+  { symbol: 'LTCUSDT', name: 'Litecoin', category: 'crypto', tvSymbol: 'BINANCE:LTCUSDT', basePrice: 112.0 },
   { symbol: 'XAUUSD', name: 'Gold / طلا جهانی', category: 'commodities', tvSymbol: 'OANDA:XAUUSD', basePrice: 2910 },
   { symbol: 'EURUSD', name: 'Euro / US Dollar', category: 'forex', tvSymbol: 'FX:EURUSD', basePrice: 1.045 },
   { symbol: 'NVDA', name: 'NVIDIA Corp', category: 'stocks', tvSymbol: 'NASDAQ:NVDA', basePrice: 138.5 },
   { symbol: 'TSLA', name: 'Tesla Inc', category: 'stocks', tvSymbol: 'NASDAQ:TSLA', basePrice: 345.2 },
+  { symbol: 'AAPL', name: 'Apple Inc', category: 'stocks', tvSymbol: 'NASDAQ:AAPL', basePrice: 238.0 },
+  { symbol: 'MSFT', name: 'Microsoft Corp', category: 'stocks', tvSymbol: 'NASDAQ:MSFT', basePrice: 420.0 },
 ];
+
+export function normalizeSymbol(raw: string): {
+  cleanSymbol: string;
+  binancePair: string;
+  tvSymbol: string;
+  name: string;
+  category: 'crypto' | 'forex' | 'stocks' | 'commodities';
+  matchedBasePrice?: number;
+} {
+  let s = raw.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  
+  const aliasMap: Record<string, string> = {
+    'RIPPLE': 'XRP',
+    'XRP': 'XRP',
+    'BITCOIN': 'BTC',
+    'ETHEREUM': 'ETH',
+    'SOLANA': 'SOL',
+    'CARDANO': 'ADA',
+    'DOGECOIN': 'DOGE',
+    'TONCOIN': 'TON',
+    'SHIBA': 'SHIB',
+    'GOLD': 'XAUUSD',
+    'TALA': 'XAUUSD',
+    'EURO': 'EURUSD',
+    'TESLA': 'TSLA',
+    'NVIDIA': 'NVDA',
+    'APPLE': 'AAPL',
+  };
+
+  if (aliasMap[s]) {
+    s = aliasMap[s];
+  }
+
+  if (s === 'XAUUSD' || s === 'GOLD') {
+    return { cleanSymbol: 'XAUUSD', binancePair: 'PAXGUSDT', tvSymbol: 'OANDA:XAUUSD', name: 'Gold / طلا جهانی', category: 'commodities', matchedBasePrice: 2910 };
+  }
+  if (s === 'EURUSD') {
+    return { cleanSymbol: 'EURUSD', binancePair: 'EURUSDT', tvSymbol: 'FX:EURUSD', name: 'Euro / US Dollar', category: 'forex', matchedBasePrice: 1.045 };
+  }
+  if (['NVDA', 'TSLA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL'].includes(s)) {
+    const market = POPULAR_MARKETS.find(m => m.symbol === s);
+    return { cleanSymbol: s, binancePair: '', tvSymbol: `NASDAQ:${s}`, name: s, category: 'stocks', matchedBasePrice: market?.basePrice || 200 };
+  }
+
+  const base = s.endsWith('USDT') ? s.slice(0, -4) : s.endsWith('USD') ? s.slice(0, -3) : s;
+  const pair = `${base}USDT`;
+  const known = POPULAR_MARKETS.find(m => m.symbol === pair || m.symbol === base);
+
+  return {
+    cleanSymbol: pair,
+    binancePair: pair,
+    tvSymbol: `BINANCE:${pair}`,
+    name: known ? known.name : base,
+    category: 'crypto',
+    matchedBasePrice: known?.basePrice,
+  };
+}
 
 function mapTimeframeToBinance(tf?: string): string {
   switch (tf) {
@@ -130,80 +198,89 @@ function calculateATR(candles: CandleData[], period: number = 14): number {
 }
 
 export async function fetchLiveMarketData(symbol: string, timeframe: string = '15m'): Promise<LiveTickerData> {
-  const cleanSymbol = symbol.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const norm = normalizeSymbol(symbol);
   const binanceTf = mapTimeframeToBinance(timeframe);
 
-  // 1. Try Binance REST API for live ticker & live Klines (candlesticks)
-  if (cleanSymbol.endsWith('USDT') || cleanSymbol.endsWith('BTC') || cleanSymbol.endsWith('USD')) {
-    try {
-      const binanceSymbol = cleanSymbol.endsWith('USDT') ? cleanSymbol : `${cleanSymbol}USDT`;
-      
-      const [tickerRes, klinesRes] = await Promise.all([
-        fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, {
-          signal: AbortSignal.timeout(3500),
-        }),
-        fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${binanceTf}&limit=50`, {
-          signal: AbortSignal.timeout(3500),
-        })
-      ]);
+  // 1. Try Binance REST API & fallback endpoints for live ticker & live Klines
+  if (norm.binancePair) {
+    const binanceHosts = [
+      'https://api.binance.com',
+      'https://data-api.binance.vision',
+      'https://api1.binance.com',
+    ];
 
-      if (tickerRes.ok) {
-        const data = await tickerRes.json();
-        const price = parseFloat(data.lastPrice);
-        const change24h = parseFloat(data.priceChangePercent);
-        const high24h = parseFloat(data.highPrice);
-        const low24h = parseFloat(data.lowPrice);
-        const volume24h = (parseFloat(data.quoteVolume) / 1_000_000).toFixed(1) + 'M $';
+    for (const host of binanceHosts) {
+      try {
+        const [tickerRes, klinesRes] = await Promise.all([
+          fetch(`${host}/api/v3/ticker/24hr?symbol=${norm.binancePair}`, {
+            signal: AbortSignal.timeout(3000),
+          }),
+          fetch(`${host}/api/v3/klines?symbol=${norm.binancePair}&interval=${binanceTf}&limit=50`, {
+            signal: AbortSignal.timeout(3000),
+          })
+        ]);
 
-        let candles: CandleData[] = [];
-        if (klinesRes.ok) {
-          const rawKlines = await klinesRes.json();
-          candles = rawKlines.map((k: any) => ({
-            time: k[0],
-            open: parseFloat(k[1]),
-            high: parseFloat(k[2]),
-            low: parseFloat(k[3]),
-            close: parseFloat(k[4]),
-            volume: parseFloat(k[5]),
-          }));
+        if (tickerRes.ok) {
+          const data = await tickerRes.json();
+          const price = parseFloat(data.lastPrice);
+          const change24h = parseFloat(data.priceChangePercent);
+          const high24h = parseFloat(data.highPrice);
+          const low24h = parseFloat(data.lowPrice);
+          const volume24h = (parseFloat(data.quoteVolume) / 1_000_000).toFixed(1) + 'M $';
+
+          let candles: CandleData[] = [];
+          if (klinesRes.ok) {
+            const rawKlines = await klinesRes.json();
+            candles = rawKlines.map((k: any) => ({
+              time: k[0],
+              open: parseFloat(k[1]),
+              high: parseFloat(k[2]),
+              low: parseFloat(k[3]),
+              close: parseFloat(k[4]),
+              volume: parseFloat(k[5]),
+            }));
+          }
+
+          if (candles.length === 0) {
+            candles = generateSyntheticCandles(price, 50, change24h > 0);
+          }
+
+          return buildTickerFromLiveCandles(
+            norm.cleanSymbol,
+            norm.name,
+            norm.category,
+            norm.tvSymbol,
+            price,
+            change24h,
+            high24h,
+            low24h,
+            volume24h,
+            candles,
+            true
+          );
         }
-
-        return buildTickerFromLiveCandles(
-          cleanSymbol,
-          cleanSymbol,
-          'crypto',
-          `BINANCE:${cleanSymbol}`,
-          price,
-          change24h,
-          high24h,
-          low24h,
-          volume24h,
-          candles,
-          true
-        );
+      } catch {
+        // Try next host
       }
-    } catch {
-      // Binance fallback below
     }
   }
 
-  // 2. Predefined non-crypto or fallback dynamic generation
-  const found = POPULAR_MARKETS.find(m => m.symbol.toUpperCase() === cleanSymbol || cleanSymbol.includes(m.symbol));
-  if (found) {
-    const variation = (Math.sin(Date.now() / 60000) * 0.008);
-    const price = found.basePrice * (1 + variation);
-    const change24h = Number(((variation * 100) + (found.symbol === 'BTCUSDT' ? 2.4 : 1.2)).toFixed(2));
-    const high24h = price * 1.03;
-    const low24h = price * 0.97;
-    const volume24h = '450.2M $';
+  // 2. Verified Base price or popular market lookup
+  const basePrice = norm.matchedBasePrice || (POPULAR_MARKETS.find(m => m.symbol === norm.cleanSymbol)?.basePrice);
+  if (basePrice) {
+    const variation = (Math.sin(Date.now() / 60000) * 0.006);
+    const price = basePrice * (1 + variation);
+    const change24h = Number(((variation * 100) + 1.2).toFixed(2));
+    const high24h = price * 1.025;
+    const low24h = price * 0.975;
+    const volume24h = '320.5M $';
 
-    // Generate realistic live candles
     const candles = generateSyntheticCandles(price, 50, change24h > 0);
     return buildTickerFromLiveCandles(
-      found.symbol,
-      found.name,
-      found.category,
-      found.tvSymbol,
+      norm.cleanSymbol,
+      norm.name,
+      norm.category,
+      norm.tvSymbol,
       price,
       change24h,
       high24h,
@@ -214,19 +291,19 @@ export async function fetchLiveMarketData(symbol: string, timeframe: string = '1
     );
   }
 
-  // 3. Generic fallback
-  const defaultPrice = 100;
+  // 3. Fallback for unlisted asset
+  const defaultPrice = 1.0;
   const defaultCandles = generateSyntheticCandles(defaultPrice, 50, true);
   return buildTickerFromLiveCandles(
-    cleanSymbol,
-    cleanSymbol,
-    'crypto',
-    `BINANCE:${cleanSymbol}`,
+    norm.cleanSymbol,
+    norm.name,
+    norm.category,
+    norm.tvSymbol,
     defaultPrice,
-    1.5,
-    defaultPrice * 1.04,
-    defaultPrice * 0.96,
-    '50M $',
+    0.5,
+    defaultPrice * 1.02,
+    defaultPrice * 0.98,
+    '10M $',
     defaultCandles,
     false
   );
