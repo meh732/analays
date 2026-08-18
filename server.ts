@@ -6,6 +6,8 @@ import { generateAITradingAnalysis } from "./server/gemini.js";
 import { sendTelegramMessage, sendBaleMessage, sendTelegramDocument } from "./server/bots.js";
 import fs from "fs";
 import os from "os";
+import { getChatSettings, updateChatSettings, getGlobalConfig, updateGlobalConfig, settingsStore } from "./server/botSettingsStore.js";
+import { handleTelegramUpdate, handleBaleUpdate, startTelegramPollingLoop, startBalePollingLoop, startBackgroundHunter } from "./server/botHandlers.js";
 
 async function startServer() {
   const app = express();
@@ -415,25 +417,28 @@ async function startServer() {
       // Restore .env if present in backupData
       if (backupData.env) {
         const envPath = path.join(process.cwd(), ".env");
-        fs.writeFileSync(envPath, backupData.env, "utf-8");
+        fs.writeFileSync(envPath, backupData.env);
       }
 
-      const formattedDate = new Date().toLocaleString("fa-IR");
+      // Restore bot_settings.json if present
+      if (backupData.botSettings) {
+        fs.writeFileSync(
+          path.join(process.cwd(), "server/bot_settings.json"),
+          JSON.stringify(backupData.botSettings, null, 2)
+        );
+      }
 
       if (tgToken && tgChatId) {
         await sendTelegramMessage(
           tgToken,
           tgChatId.toString(),
-          `♻️ **بازگردانی موفقیت‌آمیز سیستم از فایل بکاپ**\n\n` +
-          `📅 **تاریخ بازگردانی:** ${formattedDate}\n` +
-          `📦 **تاریخ نسخه بکاپ:** ${backupData.formattedDate || backupData.timestamp}\n` +
-          `✅ تمامی متغیرها و تنظیمات ربات با موفقیت بازیابی شدند.`
+          `✅ **بازیابی سیستم با موفقیت انجام شد (Restore Complete)**\n\nتنظیمات و کلیدها با موفقیت بارگذاری شدند و سیستم آماده به کار است.`
         );
       }
 
       res.json({
         success: true,
-        message: "System successfully restored from backup snapshot",
+        message: "System restore completed successfully",
       });
     } catch (err: any) {
       console.error("Restore route error:", err);
@@ -441,271 +446,35 @@ async function startServer() {
     }
   });
 
+  // --- Global Bot Config Endpoints ---
+  app.get("/api/bot/config", (_req, res) => {
+    try {
+      res.json({ success: true, config: getGlobalConfig() });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/bot/config", (req, res) => {
+    try {
+      const config = updateGlobalConfig(req.body);
+      // Restart long-polling loops to pick up new tokens/configs
+      startTelegramPollingLoop().catch(console.error);
+      startBalePollingLoop().catch(console.error);
+      res.json({ success: true, config });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Telegram Webhook Endpoint
   app.post("/api/bot/webhook/telegram", async (req, res) => {
-    res.json({ ok: true }); // Fast ACK to Telegram
+    res.json({ ok: true });
     try {
-      const update = req.body;
-      const message = update?.message;
-      const callbackQuery = update?.callback_query;
-      const token = process.env.TELEGRAM_BOT_TOKEN;
-      if (!token) return;
-
-      const mainReplyMenu = [
-        [{ text: "📊 تحلیل فوری ارزها" }, { text: "🎯 اسکنر هوشمند بازار" }],
-        [{ text: "🧠 تحلیل هوش مصنوعی" }, { text: "📚 دانش و استراتژی آفلاین" }],
-        [{ text: "⚙️ تنظیمات ریسک و سود" }, { text: "🧮 محاسبه حجم و مارجین" }],
-        [{ text: "🔔 ستاپ‌های خودکار شکار شده" }, { text: "⚖️ قوانین و سلب مسئولیت حقوقی" }],
-      ];
-
-      // Legal Disclaimer Message
-      const legalRulesMessage = `⚖️ **قوانین استفاده و سلب مسئولیت حقوقی ربات تریدینگ‌ویو** ⚖️
-
-۱. 👤 **مسئولیت کامل ۱۰۰٪ با کاربر:**
-تمامی تحلیل‌ها، نقاط ورود، تارگت‌های TP1, TP2, TP3 و حد ضررها صرفاً محاسبات هوش مصنوعی و کمکی-آموزشی بر اساس پرایس اکشن است. بازارهای مالی همواره همراه با نوسان و ریسک بوده و مسئولیت برد و باخت، دقت یا خطای تحلیل منحصراً بر عهده شخص کاربر است.
-
-۲. 🚫 **عدم هرگونه نفع مالی سازنده (Zero Creator Gain):**
-هیچ درصدی از سود معاملات کاربر به سازنده پرداخت نمی‌شود و هیچ سودی به جیب توسعه‌دهنده نمی‌رود. ربات هیچ‌گونه دسترسی به کیف‌پول، سرمایه یا دارایی کاربران در صرافی و بروکر ندارد.
-
-۳. 🌍 **شمول تمامی بازارهای تریدینگ‌ویو (ارزها، فارکس، طلا، سهام):**
-این قوانین بدون استثنا شامل کلیه دارایی‌های قابل تحلیل است:
-• 🪙 **ارزهای دیجیتال و فیوچرز** (Bitcoin, Ethereum, Solana, Altcoins)
-• 💱 **بازار جهانی تبادلات ارزی فارکس** (EUR/USD, GBP/USD, USD/JPY)
-• 🥇 **فلزات گرانبها و کامودیتی‌ها** (انس طلا XAU/USD، نقره، نفت)
-• 📈 **سهام و شاخص‌های بین‌المللی** (Tesla, Nvidia, Apple, Nasdaq)
-
-۴. 🛡️ **اصول الزامی مدیریت ریسک:**
-همواره حد ضرر (Stop Loss) را در صرافی فعال نگه دارید و در هر معامله بیش از ۱٪ تا ۳٪ از کل سرمایه را به خطر نیندازید.`;
-
-      // Handle Glass Button Clicks (Callback Queries)
-      if (callbackQuery) {
-        const chatId = callbackQuery.message.chat.id;
-        const data = callbackQuery.data;
-
-        if (data === "/rules" || data === "/disclaimer") {
-          await sendTelegramMessage(token, chatId.toString(), legalRulesMessage, {
-            inlineKeyboard: [
-              [{ text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" }, { text: "⚙️ تنظیمات ریسک", callback_data: "/settings_risk" }],
-              [{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }],
-            ],
-            replyKeyboard: mainReplyMenu,
-          });
-          return;
-        }
-
-        if (data.startsWith("/analyze")) {
-          const parts = data.replace("/analyze", "").trim().split(" ");
-          const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
-          const timeframe = parts[1] || "15m";
-          const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
-          const timeHorizon = (parts[3] || (timeframe === "1m" || timeframe === "5m" || timeframe === "15m" ? "scalp_minutes" : timeframe === "1h" || timeframe === "4h" ? "intraday_hours" : "swing_days")) as any;
-          const marketData = await fetchLiveMarketData(symbol);
-          const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode, timeHorizon }, marketData);
-          await sendTelegramMessage(token, chatId.toString(), setup.telegramMessage, {
-            inlineKeyboard: [
-              [
-                { text: `⚡ ستاپ اسکلپ (دقیقه‌ای)`, callback_data: `/analyze ${symbol} 15m ${engineMode} scalp_minutes` },
-                { text: `⏱️ ستاپ درون‌روز (ساعتی)`, callback_data: `/analyze ${symbol} 1h ${engineMode} intraday_hours` },
-                { text: `📅 ستاپ سوینگ (روزانه)`, callback_data: `/analyze ${symbol} 4h ${engineMode} swing_days` },
-              ],
-              [
-                { text: `🧠 بررسی با هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI ${timeHorizon}` },
-                { text: `📚 دانش آفلاین (SMC)`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES ${timeHorizon}` },
-              ],
-              [
-                { text: "🧮 محاسبه حجم", callback_data: `/calc ${symbol}` },
-                { text: "🎯 اسکنر بازار", callback_data: "/scanner" },
-              ],
-              [
-                { text: "⏱️ تنظیم افق زمانی", callback_data: "/settings_timing" },
-                { text: "🔙 منوی اصلی", callback_data: "/main_menu" },
-              ],
-            ],
-            replyKeyboard: mainReplyMenu,
-          });
-        } else if (data === "/settings_timing") {
-          const timingMsg = `⏱️ **تنظیم افق زمانی و سرعت نقطه ورود و خروج** ⏱️\n\nافق زمانی مورد نظر خود را برای سیگنال‌دهی انتخاب کنید:\n\n⚡ **۱. اسکلپ سریع (Scalp):**\n• تارگت‌های ۵ تا ۳۰ دقیقه‌ای\n• اهرم بالاتر (15x-30x) و ورودهای سریع فیوچرز\n\n⏱️ **۲. معاملات درون‌روز (Intraday):**\n• تارگت‌های ۱ تا ۴ ساعته\n• مناسب برای نوسان‌گیری روزانه استاندارد\n\n📅 **۳. معاملات سوینگ (Swing):**\n• تارگت‌های ۱ تا ۳ روزه\n• اهرم پایین‌تر و اهداف قیمتی گسترده‌تر\n\n🗓️ **۴. معاملات پوزیشن (Position):**\n• تارگت‌های ۱ تا ۲ هفته‌ای`;
-          await sendTelegramMessage(token, chatId.toString(), timingMsg, {
-            inlineKeyboard: [
-              [
-                { text: "⚡ اسکلپ BTC (دقیقه‌ای)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI scalp_minutes" },
-                { text: "⏱️ درون‌روز BTC (ساعتی)", callback_data: "/analyze BTCUSDT 1h ONLINE_AI intraday_hours" },
-              ],
-              [
-                { text: "📅 سوینگ BTC (روزانه)", callback_data: "/analyze BTCUSDT 4h ONLINE_AI swing_days" },
-                { text: "🗓️ پوزیشن BTC (هفتگی)", callback_data: "/analyze BTCUSDT 1D ONLINE_AI position_weeks" },
-              ],
-              [{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }],
-            ],
-            replyKeyboard: mainReplyMenu,
-          });
-        } else if (data === "/scanner") {
-          const setups = await Promise.all(
-            POPULAR_MARKETS.slice(0, 3).map(async (m) => {
-              const md = await fetchLiveMarketData(m.symbol);
-              return generateAITradingAnalysis({ symbol: m.symbol, timeframe: "15m" }, md);
-            })
-          );
-          const text = `🎯 **اسکن فوری برترین فرصت‌های بازار** 🎯\n\n` +
-            setups.map(s => `🔹 **${s.symbol}**: جهت ${s.action === "LONG" ? "🟢 لانگ" : "🔴 شورت"} | ورود: $${s.optimalEntry} | تارگت: $${s.takeProfits[0]?.price}`).join("\n\n");
-          await sendTelegramMessage(token, chatId.toString(), text, {
-            inlineKeyboard: setups.map(s => [{ text: `📊 دریافت ستاپ کامل ${s.symbol}`, callback_data: `/analyze ${s.symbol} 15m` }]),
-            replyKeyboard: mainReplyMenu,
-          });
-        } else if (data === "/settings_risk") {
-          const riskMsg = `⚙️ **پروفایل مدیریت ریسک و سوددهی ربات** ⚙️\n\nحالت‌های قابل انتخاب:\n1️⃣ 🛡️ **کم‌ریسک (Conservative)**: لوریج 3x-5x | ریسک ۱٪\n2️⃣ ⚖️ **متعادل (Moderate)**: لوریج 10x-15x | ریسک ۲٪\n3️⃣ 🚀 **تهاجمی (Aggressive)**: لوریج 20x-30x | اسکلپ پربازده`;
-          await sendTelegramMessage(token, chatId.toString(), riskMsg, {
-            inlineKeyboard: [
-              [
-                { text: "🛡️ فعال‌سازی کم‌ریسک", callback_data: "/set_risk_conservative" },
-                { text: "⚖️ فعال‌سازی متعادل", callback_data: "/set_risk_moderate" },
-                { text: "🚀 فعال‌سازی تهاجمی", callback_data: "/set_risk_aggressive" },
-              ],
-              [{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }],
-            ],
-            replyKeyboard: mainReplyMenu,
-          });
-        }
-        return;
-      }
-
-      if (!message || !message.text) return;
-
-      const chatId = message.chat.id;
-      const text = message.text.trim();
-
-      if (text === "/start" || text === "شروع" || text === "/main_menu") {
-        const welcome = `👋 **سلام! به بات تریدینگ‌ویو، تحلیل تکنیکال و سیگنال‌های دوگانه (هوش مصنوعی + دانش آفلاین) خوش آمدید.**
-
-سیستم دارای دو موتور تولید ستاپ معاملاتی است:
-🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلادرنگ و مولتی‌مدال پرایس اکشن
-📚 **۲. دانش و استراتژی آفلاین:** الگوریتم قوانین ثابت اسمارت‌مانی (SMC)، اردربلاک، هانت نقدینگی و فیبوناچی
-
-امکانات پنل به صورت **دکمه‌های شیشه‌ای** و **منوی زیر چت** در دسترس است:`;
-
-        const glassButtons = [
-          [
-            { text: "🧠 تحلیل زنده BTC (هوش مصنوعی)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
-            { text: "📚 ستاپ BTC (دانش آفلاین SMC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
-          ],
-          [
-            { text: "🧠 تحلیل ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
-            { text: "🧠 تحلیل SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
-          ],
-          [
-            { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" },
-            { text: "⚙️ تنظیمات سود و ریسک", callback_data: "/settings_risk" },
-          ],
-          [
-            { text: "🔔 شکار خودکار فرصت‌ها", callback_data: "/auto_hunter" },
-            { text: "🧮 محاسبه‌گر حجم", callback_data: "/calc" },
-          ],
-        ];
-
-        await sendTelegramMessage(token, chatId.toString(), welcome, {
-          inlineKeyboard: glassButtons,
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "🧠 تحلیل هوش مصنوعی") {
-        await sendTelegramMessage(token, chatId.toString(), "🧠 **تحلیل با هوش مصنوعی آنلاین (Gemini AI):**\nیک دارایی را انتخاب کنید:", {
-          inlineKeyboard: [
-            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" }],
-            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" }, { text: "👑 انس طلا (XAU)", callback_data: "/analyze XAUUSD 1h ONLINE_AI" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "📚 دانش و استراتژی آفلاین") {
-        await sendTelegramMessage(token, chatId.toString(), "📚 **تحلیل با متدولوژی و دانش آفلاین (Smart Money Concepts & Rules):**\nدارایی مورد نظر را انتخاب کنید:", {
-          inlineKeyboard: [
-            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m OFFLINE_RULES" }],
-            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m OFFLINE_RULES" }, { text: "👑 انس طلا (XAU)", callback_data: "/analyze XAUUSD 1h OFFLINE_RULES" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "📊 تحلیل فوری ارزها") {
-        await sendTelegramMessage(token, chatId.toString(), "🔍 ارز یا دارایی مورد نظرتان را انتخاب کنید:", {
-          inlineKeyboard: [
-            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m" }],
-            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m" }, { text: "👑 انس طلا (XAU)", callback_data: "/analyze XAUUSD 1h" }],
-            [{ text: "🟢 سهام انویدیا (NVDA)", callback_data: "/analyze NVDA 1h" }, { text: "🐕 دوج‌کوین (DOGE)", callback_data: "/analyze DOGEUSDT 15m" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "🎯 اسکنر هوشمند بازار") {
-        const setups = await Promise.all(
-          POPULAR_MARKETS.slice(0, 3).map(async (m) => {
-            const md = await fetchLiveMarketData(m.symbol);
-            return generateAITradingAnalysis({ symbol: m.symbol, timeframe: "15m" }, md);
-          })
-        );
-        const scanText = `🎯 **اسکنر بازار تریدینگ‌ویو (ستاپ‌های فعال)**\n\n` +
-          setups.map(s => `🔹 **#${s.symbol}**: ${s.action === "LONG" ? "🟢 لانگ" : "🔴 شورت"} | قیمت فعلی: $${s.currentPrice} | ورود: $${s.optimalEntry} | TP1: $${s.takeProfits[0]?.price}`).join("\n\n");
-        await sendTelegramMessage(token, chatId.toString(), scanText, {
-          inlineKeyboard: setups.map(s => [{ text: `🚀 دریافت ستاپ ${s.symbol}`, callback_data: `/analyze ${s.symbol} 15m` }]),
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "⚙️ تنظیمات ریسک و سود" || text === "⚙️ تنظیمات ریسک") {
-        const riskMsg = `⚙️ **تنظیمات حالت سوددهی و مدیریت ریسک**\n\nمی‌توانید استراتژی پیشنهادات ورود و خروج ربات را روی یکی از حالات زیر قرار دهید:`;
-        await sendTelegramMessage(token, chatId.toString(), riskMsg, {
-          inlineKeyboard: [
-            [{ text: "🛡️ حالت کم‌ریسک (اهرم ۳-۵ و استاپ مطمئن)", callback_data: "/set_risk_conservative" }],
-            [{ text: "⚖️ حالت متعادل (اهرم ۱۰-۱۵ استاندارد)", callback_data: "/set_risk_moderate" }],
-            [{ text: "🚀 حالت تهاجمی (اهرم ۲۰-۳۰ و اسکلپ پربازده)", callback_data: "/set_risk_aggressive" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "🧮 محاسبه حجم و مارجین" || text === "/calc") {
-        const calcMsg = `🧮 **ماشین‌حساب هوشمند مدیریت سرمایه و مارجین**\n\nبرای محاسبه دقیق حجم ورود:\nدستور را به شکل زیر بفرستید:\n\`/calc [سرمایه] [درصد ریسک] [قیمت ورود] [استاپ‌لاس]\`\n\nمثال: \`/calc 1000 2 68000 66500\``;
-        await sendTelegramMessage(token, chatId.toString(), calcMsg, {
-          inlineKeyboard: [
-            [{ text: "📊 ستاپ با محاسبه خودکار BTC", callback_data: "/analyze BTCUSDT 15m" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "🔔 ستاپ‌های خودکار شکار شده" || text === "/auto_hunter") {
-        const hunterMsg = `🔔 **شکارچی خودکار فرصت‌های تریدینگ‌ویو (Auto-Pilot AI Hunter)**\n\nسیستم به صورت خودکار ارزها و سهام‌های منتخب را رصد کرده و در صورت کشف ستاپ با گرید A+، آن را فورا اطلاع‌رسانی می‌کند.`;
-        await sendTelegramMessage(token, chatId.toString(), hunterMsg, {
-          inlineKeyboard: [
-            [{ text: "🎯 اجرای اسکن فوری واچ‌لیست", callback_data: "/scanner" }],
-            [{ text: "⚙️ تنظیمات ریسک شکارچی", callback_data: "/settings_risk" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "💎 ژورنال و وین‌ریت") {
-        const journalMsg = `📊 **آمار و ژورنال عملکرد سیگنال‌های تریدینگ‌ویو**\n\n🔹 وین‌ریت کل: 86.4%\n🔹 میانگین ریسک به ریوارد: 1:3.1\n🔹 تعداد سیگنال‌های تارگت خورده: ۴۲ از ۴۸\n🔹 وضعیت بازار فعلی: روند صعودی قدرتمند (Bullish Expansion)`;
-        await sendTelegramMessage(token, chatId.toString(), journalMsg, {
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "⚖️ قوانین و سلب مسئولیت حقوقی" || text === "قوانین" || text === "/rules" || text === "/disclaimer") {
-        await sendTelegramMessage(token, chatId.toString(), legalRulesMessage, {
-          inlineKeyboard: [
-            [{ text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" }, { text: "⚙️ تنظیمات ریسک", callback_data: "/settings_risk" }],
-            [{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else {
-        // Extract symbol and mode
-        const parts = text.replace("/analyze", "").replace("/futures", "").trim().split(" ");
-        const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
-        const timeframe = parts[1] || "15m";
-        const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
-
-        const marketData = await fetchLiveMarketData(symbol);
-        const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode }, marketData);
-        await sendTelegramMessage(token, chatId.toString(), setup.telegramMessage, {
-          inlineKeyboard: [
-            [
-              { text: `🧠 بررسی با هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI` },
-              { text: `📚 بررسی با دانش آفلاین (SMC)`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES` },
-            ],
-            [
-              { text: "🧮 محاسبه حجم", callback_data: `/calc ${symbol}` },
-              { text: "🎯 اسکنر بازار", callback_data: "/scanner" },
-            ],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
+      const config = getGlobalConfig();
+      const token = config.telegramToken || process.env.TELEGRAM_BOT_TOKEN;
+      if (token) {
+        await handleTelegramUpdate(token, req.body);
       }
     } catch (err) {
       console.error("Telegram webhook error:", err);
@@ -716,142 +485,10 @@ async function startServer() {
   app.post("/api/bot/webhook/bale", async (req, res) => {
     res.json({ ok: true });
     try {
-      const update = req.body;
-      const message = update?.message;
-      const callbackQuery = update?.callback_query;
-      const token = process.env.BALE_BOT_TOKEN;
-      if (!token) return;
-
-      const mainReplyMenu = [
-        [{ text: "📊 تحلیل فوری ارزها" }, { text: "🎯 اسکنر هوشمند بازار" }],
-        [{ text: "🧠 تحلیل هوش مصنوعی" }, { text: "📚 دانش و استراتژی آفلاین" }],
-        [{ text: "⚙️ تنظیمات ریسک و سود" }, { text: "🧮 محاسبه حجم و مارجین" }],
-        [{ text: "⚖️ قوانین و سلب مسئولیت حقوقی" }],
-      ];
-
-      const baleLegalRulesMessage = `⚖️ **قوانین و سلب مسئولیت حقوقی ربات تریدینگ‌ویو (بله)**
-
-۱. 👤 **مسئولیت کامل ۱۰۰٪ با کاربر:**
-کلیه ستاپ‌ها و نقاط ورود صرفاً خروجی هوش مصنوعی و جنبه آموزشی دارد. تصمیم‌گیری نهایی و مسئولیت سود یا زیان در بازار با خود کاربر است.
-
-۲. 🚫 **عدم نفع مالی سازنده (Zero Gain):**
-هیچ درصدی از معاملات شما به سازنده تعلق نمی‌گیرد و سازنده هیچ سهمی در گردش مالی شما ندارد.
-
-۳. 🌍 **پوشش کلیه بازارهای تریدینگ‌ویو:**
-شامل ارزهای دیجیتال (Crypto)، فارکس (Forex)، انس طلا (Gold) و سهام بین‌المللی.
-
-۴. 🛡️ **مدیریت ریسک:**
-تعیین حد ضرر (Stop Loss) و مدیریت حداکثر ۲٪ ریسک در هر معامله الزامی است.`;
-
-      if (callbackQuery) {
-        const chatId = callbackQuery.message.chat.id;
-        const data = callbackQuery.data;
-        if (data === "/rules" || data === "/disclaimer") {
-          await sendBaleMessage(token, chatId.toString(), baleLegalRulesMessage, {
-            inlineKeyboard: [
-              [{ text: "🎯 اسکنر بازار", callback_data: "/scanner" }],
-              [{ text: "🔙 منوی اصلی", callback_data: "/main_menu" }],
-            ],
-            replyKeyboard: mainReplyMenu,
-          });
-          return;
-        }
-        if (data.startsWith("/analyze")) {
-          const parts = data.replace("/analyze", "").trim().split(" ");
-          const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
-          const timeframe = parts[1] || "15m";
-          const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
-          const timeHorizon = (parts[3] || (timeframe === "1m" || timeframe === "5m" || timeframe === "15m" ? "scalp_minutes" : timeframe === "1h" || timeframe === "4h" ? "intraday_hours" : "swing_days")) as any;
-          const marketData = await fetchLiveMarketData(symbol);
-          const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode, timeHorizon }, marketData);
-          await sendBaleMessage(token, chatId.toString(), setup.baleMessage, {
-            inlineKeyboard: [
-              [
-                { text: `⚡ اسکلپ (دقیقه‌ای)`, callback_data: `/analyze ${symbol} 15m ${engineMode} scalp_minutes` },
-                { text: `⏱️ درون‌روز (ساعتی)`, callback_data: `/analyze ${symbol} 1h ${engineMode} intraday_hours` },
-                { text: `📅 سوینگ (روزانه)`, callback_data: `/analyze ${symbol} 4h ${engineMode} swing_days` },
-              ],
-              [
-                { text: `🧠 بررسی هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI ${timeHorizon}` },
-                { text: `📚 دانش و استراتژی آفلاین`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES ${timeHorizon}` },
-              ],
-              [{ text: "🎯 اسکنر بازار", callback_data: "/scanner" }],
-            ],
-            replyKeyboard: mainReplyMenu,
-          });
-        }
-        return;
-      }
-
-      if (!message || !message.text) return;
-
-      const chatId = message.chat.id;
-      const text = message.text.trim();
-
-      if (text === "/start" || text === "شروع") {
-        const welcome = `👋 سلام به ربات هوشمند تریدینگ‌ویو (بله) با دو موتور تحلیلی آنلاین و آفلاین خوش آمدید!\n\n🧠 ۱. هوش مصنوعی آنلاین (Gemini AI)\n📚 ۲. دانش و استراتژی آفلاین (SMC Rules)\n\nگزینه مورد نظر را انتخاب کنید:`;
-        await sendBaleMessage(token, chatId.toString(), welcome, {
-          inlineKeyboard: [
-            [{ text: "🧠 تحلیل هوش مصنوعی بیتکوین", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" }],
-            [{ text: "📚 ستاپ آفلاین اسمارت‌مانی BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" }],
-            [{ text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" }, { text: "⚙️ تنظیمات ریسک", callback_data: "/settings_risk" }],
-            [{ text: "⚖️ قوانین و سلب مسئولیت", callback_data: "/rules" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "🧠 تحلیل هوش مصنوعی") {
-        await sendBaleMessage(token, chatId.toString(), "🧠 یک دارایی را برای تحلیل هوش مصنوعی انتخاب کنید:", {
-          inlineKeyboard: [
-            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" }],
-            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "📚 دانش و استراتژی آفلاین") {
-        await sendBaleMessage(token, chatId.toString(), "📚 یک دارایی را برای بررسی با استراتژی و دانش آفلاین SMC انتخاب کنید:", {
-          inlineKeyboard: [
-            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m OFFLINE_RULES" }],
-            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m OFFLINE_RULES" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "🎯 اسکنر هوشمند بازار" || text === "/scanner") {
-        const setups = await Promise.all(
-          POPULAR_MARKETS.slice(0, 3).map(async (m) => {
-            const md = await fetchLiveMarketData(m.symbol);
-            return generateAITradingAnalysis({ symbol: m.symbol, timeframe: "15m" }, md);
-          })
-        );
-        const scanText = `🎯 **اسکنر بازار تریدینگ‌ویو**\n\n` +
-          setups.map(s => `▪️ #${s.symbol}: ${s.action === "LONG" ? "خرید لانگ" : "فروش شورت"} | ورود: $${s.optimalEntry} | TP1: $${s.takeProfits[0]?.price}`).join("\n\n");
-        await sendBaleMessage(token, chatId.toString(), scanText, {
-          inlineKeyboard: setups.map(s => [{ text: `تحلیل کامل ${s.symbol}`, callback_data: `/analyze ${s.symbol}` }]),
-          replyKeyboard: mainReplyMenu,
-        });
-      } else if (text === "⚖️ قوانین و سلب مسئولیت حقوقی" || text === "/rules" || text === "قوانین") {
-        await sendBaleMessage(token, chatId.toString(), baleLegalRulesMessage, {
-          inlineKeyboard: [
-            [{ text: "🎯 اسکنر بازار", callback_data: "/scanner" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
-      } else {
-        const parts = text.replace("/analyze", "").replace("/futures", "").trim().split(" ");
-        const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
-        const timeframe = parts[1] || "15m";
-        const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
-        const marketData = await fetchLiveMarketData(symbol);
-        const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode }, marketData);
-        await sendBaleMessage(token, chatId.toString(), setup.baleMessage, {
-          inlineKeyboard: [
-            [
-              { text: `🧠 بررسی هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI` },
-              { text: `📚 دانش آفلاین SMC`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES` },
-            ],
-            [{ text: "🎯 اسکنر بازار", callback_data: "/scanner" }],
-          ],
-          replyKeyboard: mainReplyMenu,
-        });
+      const config = getGlobalConfig();
+      const token = config.baleToken || process.env.BALE_BOT_TOKEN;
+      if (token) {
+        await handleBaleUpdate(token, req.body);
       }
     } catch (err) {
       console.error("Bale webhook error:", err);
@@ -875,6 +512,13 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`TradingView Bot Server running on http://localhost:${PORT}`);
+    
+    // Start polling and master auto hunter loop
+    setTimeout(() => {
+      startTelegramPollingLoop().catch(console.error);
+      startBalePollingLoop().catch(console.error);
+      startBackgroundHunter();
+    }, 1500);
   });
 }
 

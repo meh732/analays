@@ -158,7 +158,7 @@ export default function App() {
     };
   });
 
-  // Load Initial Tickers from backend
+  // Load Initial Tickers & Bot Config from backend
   useEffect(() => {
     const fetchTickers = async () => {
       try {
@@ -173,7 +173,23 @@ export default function App() {
         console.log('Using default tickers fallback');
       }
     };
+    
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/bot/config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.config) {
+            setBotConfig(data.config);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching backend bot config:', err);
+      }
+    };
+
     fetchTickers();
+    fetchConfig();
   }, []);
 
   const showToast = (type: 'success' | 'error', text: string) => {
@@ -484,12 +500,20 @@ export default function App() {
     setCustomSymbolInput('');
   };
 
-  const handleSaveConfig = (newConfig: BotConfig) => {
+  const handleSaveConfig = async (newConfig: BotConfig) => {
     setBotConfig(newConfig);
     try {
       localStorage.setItem('tv_bot_config', JSON.stringify(newConfig));
-    } catch {}
-    showToast('success', 'تنظیمات ربات ذخیره شد.');
+      // Save globally to backend persistent store
+      await fetch('/api/bot/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig),
+      });
+    } catch (err) {
+      console.error('Failed to sync config with backend:', err);
+    }
+    showToast('success', 'تنظیمات ربات ذخیره و روی سرور اعمال شد.');
   };
 
   const handleTestConnection = async (platform: 'telegram' | 'bale', token: string, chatId: string) => {
