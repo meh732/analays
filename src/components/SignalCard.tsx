@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TradeSetup } from '../types';
+import { TradingViewWidget } from './TradingViewWidget';
 import {
   TrendingUp,
   TrendingDown,
@@ -26,6 +27,8 @@ import {
   Timer,
   Hourglass,
   Calendar,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface SignalCardProps {
@@ -37,6 +40,58 @@ interface SignalCardProps {
   onOpenLegal?: () => void;
   onReAnalyzeWithMode?: (mode: 'OFFLINE_RULES' | 'ONLINE_AI') => void;
 }
+
+const CoinLogo: React.FC<{ symbol: string }> = ({ symbol }) => {
+  const [imgError, setImgError] = useState(false);
+  const clean = symbol.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  let base = clean;
+  if (clean.endsWith("USDT")) base = clean.replace("USDT", "");
+  else if (clean.endsWith("USD")) base = clean.replace("USD", "");
+  else if (clean.endsWith("BTC")) base = clean.replace("BTC", "");
+
+  if (clean === "XAUUSD" || clean === "GOLD") {
+    return (
+      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-600 flex items-center justify-center text-sm shadow-md border border-amber-500/20 shrink-0">
+        🥇
+      </div>
+    );
+  }
+  if (clean === "EURUSD" || clean === "GBPUSD") {
+    return (
+      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-800 flex items-center justify-center text-sm shadow-md border border-blue-500/20 shrink-0">
+        💱
+      </div>
+    );
+  }
+  if (clean === "NVDA" || clean === "TSLA" || clean === "AAPL") {
+    return (
+      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-green-700 flex items-center justify-center text-sm shadow-md border border-emerald-500/20 shrink-0">
+        📈
+      </div>
+    );
+  }
+
+  const logoUrl = `https://assets.coincap.io/assets/icons/${base.toLowerCase()}@2x.png`;
+  const fallbackLogoUrl = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${base.toLowerCase()}.png`;
+
+  if (!imgError) {
+    return (
+      <img
+        src={logoUrl}
+        alt={base}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className="w-8 h-8 rounded-full object-cover shadow-md border border-slate-700 bg-slate-950 shrink-0"
+      />
+    );
+  }
+
+  return (
+    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-[10px] font-black text-slate-100 shadow-md border border-indigo-500/30 shrink-0">
+      {base.slice(0, 3)}
+    </div>
+  );
+};
 
 export const SignalCard: React.FC<SignalCardProps> = ({
   setup,
@@ -51,6 +106,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(true);
   const [showEducationalDetails, setShowEducationalDetails] = useState(true);
   const [activeTab, setActiveTab] = useState<'fa' | 'en' | 'raw' | 'edu'>('fa');
+  const [showEmbeddedChart, setShowEmbeddedChart] = useState(false);
 
   const isLong = setup.action === 'LONG';
   const isShort = setup.action === 'SHORT';
@@ -95,13 +151,16 @@ export const SignalCard: React.FC<SignalCardProps> = ({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-black text-slate-100 tracking-wide font-['Plus_Jakarta_Sans',sans-serif]">
-              {setup.symbol}
-            </span>
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs font-semibold">
-              {setup.timeframe}
-            </span>
+          <div className="flex items-center gap-2.5">
+            <CoinLogo symbol={setup.symbol} />
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-black text-slate-100 tracking-wide font-['Plus_Jakarta_Sans',sans-serif]">
+                {setup.symbol}
+              </span>
+              <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs font-semibold">
+                {setup.timeframe}
+              </span>
+            </div>
           </div>
 
           {/* Engine Mode Badge */}
@@ -120,6 +179,20 @@ export const SignalCard: React.FC<SignalCardProps> = ({
 
         {/* Grade & Confidence Badge + Re-Analyze Switch */}
         <div className="flex items-center gap-2">
+          {/* embedded chart toggle */}
+          <button
+            onClick={() => setShowEmbeddedChart(!showEmbeddedChart)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border ${
+              showEmbeddedChart
+                ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 hover:bg-rose-500/30'
+                : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+            }`}
+            title="نمایش یا پنهان‌سازی نمودار زنده قیمت"
+          >
+            {showEmbeddedChart ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+            <span>{showEmbeddedChart ? 'بستن چارت' : '👁️ مشاهده چارت'}</span>
+          </button>
+
           {onReAnalyzeWithMode && (
             <button
               onClick={() => onReAnalyzeWithMode(isOffline ? 'ONLINE_AI' : 'OFFLINE_RULES')}
@@ -142,6 +215,13 @@ export const SignalCard: React.FC<SignalCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Embedded live chart */}
+      {showEmbeddedChart && (
+        <div className="w-full h-[440px] mt-3 rounded-xl overflow-hidden border border-slate-800 shadow-2xl relative">
+          <TradingViewWidget symbol={setup.symbol} timeframe={setup.timeframe} />
+        </div>
+      )}
 
       {/* Real-Time Freshness & Status Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-950/60 border border-slate-800/60 rounded-xl px-4 py-2 mt-3 mb-2 text-xs text-slate-400">

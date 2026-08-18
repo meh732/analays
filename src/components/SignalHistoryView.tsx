@@ -20,6 +20,57 @@ interface SignalHistoryViewProps {
   onSendToBale: (setup: TradeSetup) => void;
 }
 
+const CoinLogo: React.FC<{ symbol: string }> = ({ symbol }) => {
+  const [imgError, setImgError] = useState(false);
+  const clean = symbol.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  let base = clean;
+  if (clean.endsWith("USDT")) base = clean.replace("USDT", "");
+  else if (clean.endsWith("USD")) base = clean.replace("USD", "");
+  else if (clean.endsWith("BTC")) base = clean.replace("BTC", "");
+
+  if (clean === "XAUUSD" || clean === "GOLD") {
+    return (
+      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-600 flex items-center justify-center text-xs shadow-md border border-amber-500/20 shrink-0">
+        🥇
+      </div>
+    );
+  }
+  if (clean === "EURUSD" || clean === "GBPUSD") {
+    return (
+      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-800 flex items-center justify-center text-xs shadow-md border border-blue-500/20 shrink-0">
+        💱
+      </div>
+    );
+  }
+  if (clean === "NVDA" || clean === "TSLA" || clean === "AAPL") {
+    return (
+      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-500 to-green-700 flex items-center justify-center text-xs shadow-md border border-emerald-500/20 shrink-0">
+        📈
+      </div>
+    );
+  }
+
+  const logoUrl = `https://assets.coincap.io/assets/icons/${base.toLowerCase()}@2x.png`;
+
+  if (!imgError) {
+    return (
+      <img
+        src={logoUrl}
+        alt={base}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className="w-6 h-6 rounded-full object-cover shadow-md border border-slate-700 bg-slate-950 shrink-0"
+      />
+    );
+  }
+
+  return (
+    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-[9px] font-black text-slate-100 shadow-md border border-indigo-500/30 shrink-0">
+      {base.slice(0, 3)}
+    </div>
+  );
+};
+
 export const SignalHistoryView: React.FC<SignalHistoryViewProps> = ({
   history,
   onUpdateStatus,
@@ -129,15 +180,7 @@ export const SignalHistoryView: React.FC<SignalHistoryViewProps> = ({
                   className="bg-slate-950 border border-slate-800/80 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 hover:border-slate-700 transition-colors text-xs"
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
-                        isLong
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                      }`}
-                    >
-                      {isLong ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                    </div>
+                    <CoinLogo symbol={item.symbol} />
 
                     <div>
                       <div className="flex items-center gap-2">

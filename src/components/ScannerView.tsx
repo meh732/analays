@@ -25,6 +25,57 @@ interface ScannerViewProps {
   onSendToBale: (setup: TradeSetup) => void;
 }
 
+const CoinLogo: React.FC<{ symbol: string }> = ({ symbol }) => {
+  const [imgError, setImgError] = useState(false);
+  const clean = symbol.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  let base = clean;
+  if (clean.endsWith("USDT")) base = clean.replace("USDT", "");
+  else if (clean.endsWith("USD")) base = clean.replace("USD", "");
+  else if (clean.endsWith("BTC")) base = clean.replace("BTC", "");
+
+  if (clean === "XAUUSD" || clean === "GOLD") {
+    return (
+      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-600 flex items-center justify-center text-xs shadow-md border border-amber-500/20 shrink-0">
+        🥇
+      </div>
+    );
+  }
+  if (clean === "EURUSD" || clean === "GBPUSD") {
+    return (
+      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-800 flex items-center justify-center text-xs shadow-md border border-blue-500/20 shrink-0">
+        💱
+      </div>
+    );
+  }
+  if (clean === "NVDA" || clean === "TSLA" || clean === "AAPL") {
+    return (
+      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-500 to-green-700 flex items-center justify-center text-xs shadow-md border border-emerald-500/20 shrink-0">
+        📈
+      </div>
+    );
+  }
+
+  const logoUrl = `https://assets.coincap.io/assets/icons/${base.toLowerCase()}@2x.png`;
+
+  if (!imgError) {
+    return (
+      <img
+        src={logoUrl}
+        alt={base}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className="w-6 h-6 rounded-full object-cover shadow-md border border-slate-700 bg-slate-950 shrink-0"
+      />
+    );
+  }
+
+  return (
+    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-[9px] font-black text-slate-100 shadow-md border border-indigo-500/30 shrink-0">
+      {base.slice(0, 3)}
+    </div>
+  );
+};
+
 export const ScannerView: React.FC<ScannerViewProps> = ({
   setups,
   onSelectSetup,
@@ -109,13 +160,16 @@ export const ScannerView: React.FC<ScannerViewProps> = ({
               <div>
                 {/* Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-base text-slate-100 font-['Plus_Jakarta_Sans',sans-serif]">
-                      {setup.symbol}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-[11px] text-slate-400">
-                      {setup.timeframe}
-                    </span>
+                  <div className="flex items-center gap-2.5">
+                    <CoinLogo symbol={setup.symbol} />
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-base text-slate-100 font-['Plus_Jakarta_Sans',sans-serif]">
+                        {setup.symbol}
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-[11px] text-slate-400">
+                        {setup.timeframe}
+                      </span>
+                    </div>
                   </div>
 
                   <div
