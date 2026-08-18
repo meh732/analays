@@ -201,33 +201,8 @@ EOF
 
 # Detect and install appropriate native bindings for Tailwind CSS / Oxide
 install_platform_native_bindings() {
-    ARCH=$(uname -m)
-    LIBC="gnu"
-    if ldd --version 2>&1 | grep -iq musl || [ -f /etc/alpine-release ]; then
-        LIBC="musl"
-    fi
-
-    echo -e "${BLUE}🔍 Detected Platform: Linux (${ARCH}, ${LIBC})${NC}"
-
-    BINDING_PKG=""
-    if [ "$ARCH" = "x86_64" ]; then
-        if [ "$LIBC" = "musl" ]; then
-            BINDING_PKG="@tailwindcss/oxide-linux-x64-musl"
-        else
-            BINDING_PKG="@tailwindcss/oxide-linux-x64-gnu"
-        fi
-    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-        if [ "$LIBC" = "musl" ]; then
-            BINDING_PKG="@tailwindcss/oxide-linux-arm64-musl"
-        else
-            BINDING_PKG="@tailwindcss/oxide-linux-arm64-gnu"
-        fi
-    fi
-
-    if [ -n "$BINDING_PKG" ]; then
-        echo -e "${BLUE}📦 Explicitly installing ${BINDING_PKG} to resolve native binding...${NC}"
-        npm install "${BINDING_PKG}@^4.1.14" --save-exact --no-audit || true
-    fi
+    # Tailwind CSS v3 is active (100% JavaScript, no native bindings required)
+    echo -e "${GREEN}✨ Tailwind CSS v3 is active. Bypassing native Rust binaries entirely for maximum compatibility!${NC}"
 }
 
 # Robust production build handler with automated self-healing
@@ -242,9 +217,8 @@ build_production_bundle() {
 
     echo -e "${YELLOW}⚠️ Notice: Initial build failed. Attempting automated recovery...${NC}"
 
-    # Recovery 1: Re-install optional native bindings and force install
-    install_platform_native_bindings
-    npm install --include=optional --force
+    # Recovery: Re-install standard packages cleanly and force reinstall
+    npm install --force
 
     if npm run build; then
         echo -e "${GREEN}✅ Production bundle built successfully after recovery.${NC}"
@@ -255,14 +229,13 @@ build_production_bundle() {
     echo -e "${YELLOW}⚠️ Performing deep clean and reinstall...${NC}"
     rm -rf node_modules package-lock.json
     npm cache clean --force 2>/dev/null || true
-    npm install --include=optional --force
-    install_platform_native_bindings
+    npm install --force
 
     if npm run build; then
         echo -e "${GREEN}✅ Production bundle built successfully after deep recovery.${NC}"
         return 0
     else
-        echo -e "${RED}❌ Error: Production build failed. Please ensure Node.js 18+ and build-essential are available.${NC}"
+        echo -e "${RED}❌ Error: Production build failed. Please check build logs above.${NC}"
         exit 1
     fi
 }
