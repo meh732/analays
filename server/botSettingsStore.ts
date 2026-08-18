@@ -18,6 +18,9 @@ export interface ChatSettings {
   termsAccepted?: boolean;
   termsAcceptedAt?: number;
   history?: any[];
+  pendingCustomQuoteBase?: string;
+  pendingAdminPasscode?: boolean;
+  pendingAdminBroadcast?: boolean;
 }
 
 export interface GlobalBotConfig {
@@ -33,6 +36,8 @@ export interface GlobalBotConfig {
   defaultEngineMode?: 'ONLINE_AI' | 'OFFLINE_RULES';
   defaultTimeframe: '1m' | '5m' | '15m' | '1h' | '4h' | '1D';
   defaultRiskPercent: number;
+  adminPasscode: string;
+  adminChatIds: string[];
   riskSettings: {
     profile: 'conservative' | 'moderate' | 'aggressive';
     maxRiskPercent: number;
@@ -80,6 +85,8 @@ const DEFAULT_GLOBAL_CONFIG: GlobalBotConfig = {
   defaultEngineMode: 'ONLINE_AI',
   defaultTimeframe: '15m',
   defaultRiskPercent: 2,
+  adminPasscode: process.env.ADMIN_PASSCODE || "admin123",
+  adminChatIds: [],
   riskSettings: {
     profile: 'moderate',
     maxRiskPercent: 2.0,
@@ -99,6 +106,40 @@ const DEFAULT_GLOBAL_CONFIG: GlobalBotConfig = {
 
 const storePath = path.join(process.cwd(), "server", "bot_settings.json");
 let settingsStore: Record<string, any> = {};
+
+// In-memory authenticated admin sessions per chat ID
+const authenticatedAdminChats = new Set<string>();
+
+export function isAdmin(chatId: string | number): boolean {
+  const cid = String(chatId);
+  const cfg = getGlobalConfig();
+  if (authenticatedAdminChats.has(cid)) return true;
+  if (cfg.adminChatIds && cfg.adminChatIds.includes(cid)) return true;
+  if (cfg.telegramChatId && cfg.telegramChatId === cid) return true;
+  if (cfg.baleChatId && cfg.baleChatId === cid) return true;
+  return false;
+}
+
+export function authenticateAdmin(chatId: string | number, passcode: string): boolean {
+  const cid = String(chatId);
+  const cfg = getGlobalConfig();
+  const validPass = cfg.adminPasscode || "admin123";
+  if (passcode.trim() === validPass.trim()) {
+    authenticatedAdminChats.add(cid);
+    return true;
+  }
+  return false;
+}
+
+export function deauthenticateAdmin(chatId: string | number): void {
+  const cid = String(chatId);
+  authenticatedAdminChats.delete(cid);
+}
+
+export function getAllActiveChatsCount(): number {
+  const keys = Object.keys(settingsStore).filter(k => !k.startsWith("__"));
+  return Math.max(1, keys.length);
+}
 
 // Load settings from JSON file
 export function loadAllSettings() {

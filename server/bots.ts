@@ -47,7 +47,8 @@ export async function sendTelegramMessage(
       payload.reply_markup = {
         keyboard: options.replyKeyboard,
         resize_keyboard: options.resizeKeyboard ?? true,
-        is_persistent: true,
+        is_persistent: false,
+        one_time_keyboard: false,
       };
     }
 

@@ -1,8 +1,9 @@
 // Use native global fetch instead of uninstalled node-fetch
-import { POPULAR_MARKETS, fetchLiveMarketData } from "./market.js";
+import { POPULAR_MARKETS, fetchLiveMarketData, parseBaseAndQuote, normalizeSymbol } from "./market.js";
 import { generateAITradingAnalysis } from "./gemini.js";
 import { sendTelegramMessage, sendBaleMessage } from "./bots.js";
-import { getChatSettings, updateChatSettings, getGlobalConfig } from "./botSettingsStore.js";
+import { getChatSettings, updateChatSettings, getGlobalConfig, updateGlobalConfig, isAdmin, authenticateAdmin, deauthenticateAdmin, getAllActiveChatsCount, settingsStore } from "./botSettingsStore.js";
+import { scanAuthenticMarketOpportunities } from "./offlineKnowledgeEngine.js";
 
 export function performPositionCalculation(
   balance: number,
@@ -64,9 +65,9 @@ export function saveToHistory(chatId: string | number, setup: any) {
   }
 }
 
-async function handleSymbolSearch(
+async function showQuoteSelectionMenu(
   chatId: number,
-  symbol: string,
+  baseSymbol: string,
   botType: "telegram" | "bale",
   token: string,
   settings: any,
@@ -79,6 +80,176 @@ async function handleSymbolSearch(
       return sendBaleMessage(token, chatId.toString(), txt, opts);
     }
   };
+
+  const cleanBase = baseSymbol.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const quoteMsg = `💎 **انتخاب واحد معاملاتی برای نماد #${cleanBase}** 💎\n\n` +
+    `لطفاً واحد یا جفت‌ارز مورد نظر خود را جهت استخراج تحلیل و ستاپ تریدینگ‌ویو انتخاب کنید:\n\n` +
+    `• **USDT**: تتر (دلار دیجیتال)\n` +
+    `• **USD**: دلار فیات جهانی\n` +
+    `• **BTC**: جفت‌ارز بیت‌کوین (ساتوشی)\n` +
+    `• **IRT**: تومان / ریال ایران\n` +
+    `• **EUR**: یورو اروپا\n` +
+    `یا روی **«✏️ تایپ واحد دلخواه»** بزنید تا هر واحد دلخواه دیگر (USDC، DAI و ...) را دستی وارد نمایید.`;
+
+  await sendMessage(quoteMsg, {
+    inlineKeyboard: [
+      [
+        { text: `💵 USDT (تتر)`, callback_data: `/quote_select ${cleanBase} USDT`, style: "success" },
+        { text: `💲 USD (دلار)`, callback_data: `/quote_select ${cleanBase} USD`, style: "primary" },
+      ],
+      [
+        { text: `🪙 BTC (ساتوشی)`, callback_data: `/quote_select ${cleanBase} BTC`, style: "primary" },
+        { text: `🇮🇷 IRT (تومان)`, callback_data: `/quote_select ${cleanBase} IRT`, style: "primary" },
+      ],
+      [
+        { text: `💶 EUR (یورو)`, callback_data: `/quote_select ${cleanBase} EUR`, style: "primary" },
+        { text: `✏️ تایپ واحد دلخواه`, callback_data: `/prompt_quote ${cleanBase}`, style: "primary" },
+      ],
+      [
+        { text: `⚡ تحلیل فوری با پیش‌فرض (${cleanBase}USDT)`, callback_data: `/analyze ${cleanBase}USDT`, style: "success" }
+      ],
+      [
+        { text: `🔙 منوی اصلی ربات`, callback_data: `/main_menu` }
+      ]
+    ],
+    replyKeyboard: mainReplyMenu,
+  });
+}
+
+async function renderAdminAuthPrompt(
+  chatId: number,
+  botType: "telegram" | "bale",
+  token: string,
+  mainReplyMenu: any
+) {
+  const sendMessage = async (txt: string, opts?: any) => {
+    if (botType === "telegram") {
+      return sendTelegramMessage(token, chatId.toString(), txt, opts);
+    } else {
+      return sendBaleMessage(token, chatId.toString(), txt, opts);
+    }
+  };
+
+  updateChatSettings(chatId, { pendingAdminPasscode: true, pendingCustomQuoteBase: undefined });
+
+  const text = `🔒 **ورود به پنل مدیریت ارشد ربات (Admin Authentication)** 🔒\n\n` +
+    `این بخش اختصاصی مدیریت سیستم بوده و دسترسی به آن نیازمند تایید هویت و رمز عبور ادمین است.\n\n` +
+    `✍️ **لطفاً رمز عبور ادمین را همین حالا ارسال کنید:**\n` +
+    `_(رمز پیش‌فرض سیستم: \`admin123\` است که در بخش تنظیمات قابل تغییر می‌باشد)_`;
+
+  await sendMessage(text, {
+    inlineKeyboard: [
+      [{ text: "🔑 ورود سریع با رمز پیش‌فرض (admin123)", callback_data: "/admin_auth admin123", style: "success" }],
+      [{ text: "🔙 انصراف و بازگشت به منوی اصلی", callback_data: "/main_menu" }]
+    ],
+    replyKeyboard: mainReplyMenu,
+  });
+}
+
+async function renderAdminDashboard(
+  chatId: number,
+  botType: "telegram" | "bale",
+  token: string,
+  mainReplyMenu: any
+) {
+  const sendMessage = async (txt: string, opts?: any) => {
+    if (botType === "telegram") {
+      return sendTelegramMessage(token, chatId.toString(), txt, opts);
+    } else {
+      return sendBaleMessage(token, chatId.toString(), txt, opts);
+    }
+  };
+
+  const cfg = getGlobalConfig();
+  const isAi = cfg.enableAiEngine !== false;
+  const isOffline = cfg.enableOfflineEngine !== false;
+  const defEngine = cfg.defaultEngineMode === "OFFLINE_RULES" ? "📚 آفلاین SMC" : "🧠 هوش مصنوعی";
+  const isHunter = cfg.autoHunter?.enabled === true;
+  const hunterInterval = cfg.autoHunter?.intervalMinutes || 3;
+  const tgBc = cfg.autoHunter?.autoBroadcastToTelegram === true;
+  const baleBc = cfg.autoHunter?.autoBroadcastToBale === true;
+  const riskProf = cfg.riskSettings?.profile || "moderate";
+  const riskProfFa = riskProf === 'conservative' ? '🛡️ کم‌ریسک' : riskProf === 'aggressive' ? '🚀 تهاجمی' : '⚖️ متعادل';
+  const defTf = cfg.defaultTimeframe || "15m";
+  const totalUsers = getAllActiveChatsCount();
+
+  const text = `👑 **پنل مدیریت ارشد و تنظیمات سراسری ربات تریدینگ‌ویو** 👑\n\n` +
+    `🔐 **وضعیت دسترسی:** ✅ احراز هویت ادمین فعال\n` +
+    `👥 **تعداد کاربران/چت‌های ثبت‌شده:** **${totalUsers} کاربر فعال**\n\n` +
+    `📊 **وضعیت لحظه‌ای موتورها و ابزارهای ربات:**\n` +
+    `• 🧠 موتور هوش مصنوعی آنلاین: **${isAi ? "🟢 فعال" : "🔴 غیرفعال / خاموش"}**\n` +
+    `• 📚 موتور استراتژی آفلاین SMC: **${isOffline ? "🟢 فعال" : "🔴 غیرفعال / خاموش"}**\n` +
+    `• ⚡ موتور پیش‌فرض سراسری: **${defEngine}**\n` +
+    `• 🔔 شکارچی خودکار (Auto-Pilot): **${isHunter ? "🟢 فعال" : "🔴 غیرفعال"}** (هر ${hunterInterval} دقیقه)\n` +
+    `• 📡 ارسال شکارچی به تلگرام: **${tgBc ? "🟢 روشن" : "🔴 خاموش"}**\n` +
+    `• 📡 ارسال شکارچی به بله: **${baleBc ? "🟢 روشن" : "🔴 خاموش"}**\n` +
+    `• 🛡️ پروفایل ریسک پیش‌فرض سیستم: **${riskProfFa}**\n` +
+    `• ⏱️ تایم‌فریم پیش‌فرض سیستم: **${defTf}**\n\n` +
+    `👇 **با کلیک روی دکمه‌های شیشه‌ای رنگی زیر، هر گزینه را فوراً تغییر دهید:**`;
+
+  const inlineKeyboard = [
+    [
+      { text: `🧠 موتور هوش مصنوعی: ${isAi ? "🟢 فعال" : "🔴 خاموش"}`, callback_data: "/admin_toggle_ai", style: isAi ? "success" : "danger" },
+      { text: `📚 دانش آفلاین SMC: ${isOffline ? "🟢 فعال" : "🔴 خاموش"}`, callback_data: "/admin_toggle_offline", style: isOffline ? "success" : "danger" },
+    ],
+    [
+      { text: `⚡ موتور پیش‌فرض: ${defEngine}`, callback_data: "/admin_toggle_def_engine", style: "primary" },
+      { text: `🔔 شکارچی خودکار: ${isHunter ? "🟢 روشن" : "🔴 خاموش"}`, callback_data: "/admin_toggle_hunter", style: isHunter ? "success" : "danger" },
+    ],
+    [
+      { text: `⏱️ بازه ارسال شکارچی (${hunterInterval} دقیقه)`, callback_data: "/admin_interval_menu", style: "primary" },
+      { text: `📡 ارسال تلگرام: ${tgBc ? "🟢 روشن" : "🔴 خاموش"}`, callback_data: "/admin_toggle_tg_bc", style: tgBc ? "success" : "danger" },
+    ],
+    [
+      { text: `📡 ارسال بله: ${baleBc ? "🟢 روشن" : "🔴 خاموش"}`, callback_data: "/admin_toggle_bale_bc", style: baleBc ? "success" : "danger" },
+      { text: `🛡️ پروفایل ریسک سیستم (${riskProfFa})`, callback_data: "/admin_risk_menu", style: "warning" },
+    ],
+    [
+      { text: `⏱️ تایم‌فریم پیش‌فرض سیستم (${defTf})`, callback_data: "/admin_tf_menu", style: "primary" },
+      { text: `📢 ارسال پیام همگانی (Broadcast)`, callback_data: "/admin_prompt_broadcast", style: "warning" },
+    ],
+    [
+      { text: `🔑 تغییر رمز عبور ادمین`, callback_data: "/admin_prompt_chpass", style: "primary" },
+      { text: `🚪 خروج از حالت ادمین`, callback_data: "/admin_logout", style: "danger" },
+    ],
+    [
+      { text: `🔄 به‌روزرسانی پنل ادمین`, callback_data: "/admin" },
+      { text: `🔙 بازگشت به منوی کاربری`, callback_data: "/main_menu" }
+    ]
+  ];
+
+  await sendMessage(text, {
+    inlineKeyboard,
+    replyKeyboard: mainReplyMenu,
+  });
+}
+
+async function handleSymbolSearch(
+  chatId: number,
+  rawInput: string,
+  botType: "telegram" | "bale",
+  token: string,
+  settings: any,
+  mainReplyMenu: any
+) {
+  const sendMessage = async (txt: string, opts?: any) => {
+    if (botType === "telegram") {
+      return sendTelegramMessage(token, chatId.toString(), txt, opts);
+    } else {
+      return sendBaleMessage(token, chatId.toString(), txt, opts);
+    }
+  };
+
+  const clean = rawInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const { base, quote } = parseBaseAndQuote(clean);
+
+  // If the user typed only the base asset name (e.g. BTC, XRP, SOL, DOGE, ETH, ADA) without a full pair, show unit picker first!
+  const isBaseOnly = clean === base && !['XAUUSD', 'EURUSD', 'GBPUSD', 'USDJPY', 'NVDA', 'TSLA', 'AAPL', 'MSFT'].includes(clean);
+  if (isBaseOnly && clean.length <= 6) {
+    return showQuoteSelectionMenu(chatId, clean, botType, token, settings, mainReplyMenu);
+  }
+
+  const symbol = clean;
 
   try {
     const loadingText = `⏳ **در حال دریافت داده‌های زنده و تحلیل ستاپ هوشمند ورود/خروج برای #${symbol}...**\n\nلطفا چند ثانیه منتظر بمانید تا الگوهای پرایس اکشن و سطوح نقدینگی استخراج شوند.`;
@@ -131,9 +302,10 @@ async function handleSymbolSearch(
 
     const inlineKeyboard = [
       [
+        { text: `💱 انتخاب واحد دیگر (Quote)`, callback_data: `/quote_menu ${base}` },
         isInWatchlist 
-          ? { text: `➖ 𝖱𝖤𝖬𝖮𝖵𝖤 | حذف #${symbol} از دیده‌بان`, callback_data: `/remove_wl_confirm ${symbol}` }
-          : { text: `➕ 𝖠𝖣𝖣 | افزودن #${symbol} به دیده‌بان`, callback_data: `/add_wl_confirm ${symbol}` }
+          ? { text: `➖ حذف از دیده‌بان`, callback_data: `/remove_wl_confirm ${symbol}` }
+          : { text: `➕ افزودن به دیده‌بان`, callback_data: `/add_wl_confirm ${symbol}` }
       ],
       [
         { text: `🧮 محاسبه حجم معامله (Position)`, callback_data: `/calc_setup ${symbol} ${setup.optimalEntry} ${setup.stopLoss.price}` }
@@ -414,29 +586,288 @@ ${enableAi ? "🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلاد
         return;
       }
 
+      if (data === "/admin" || data === "/admin_panel") {
+        if (!isAdmin(chatId)) {
+          return renderAdminAuthPrompt(chatId, botType, token, mainReplyMenu);
+        }
+        return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+      }
+
+      if (data.startsWith("/admin_auth ")) {
+        const pass = data.replace("/admin_auth ", "").trim();
+        if (authenticateAdmin(chatId, pass)) {
+          updateChatSettings(chatId, { pendingAdminPasscode: undefined });
+          await sendMessage(chatId.toString(), `✅ **احراز هویت ادمین با موفقیت انجام شد.**\nخوش آمدید، به پنل مدیریت متصل شدید.`, { replyKeyboard: mainReplyMenu });
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        } else {
+          await sendMessage(chatId.toString(), `❌ **رمز عبور نادرست است.**\nدسترسی به بخش مدیریت مسدود است.`, {
+            inlineKeyboard: [[{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }]],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+      }
+
+      // Admin actions - strict permission guard
+      if (data.startsWith("/admin_")) {
+        if (!isAdmin(chatId)) {
+          return renderAdminAuthPrompt(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_toggle_ai") {
+          const cfg = getGlobalConfig();
+          const newVal = !(cfg.enableAiEngine !== false);
+          updateGlobalConfig({ enableAiEngine: newVal });
+          await sendMessage(chatId.toString(), `⚙️ **موتور هوش مصنوعی آنلاین:** ${newVal ? "🟢 فعال شد" : "🔴 غیرفعال شد"}`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_toggle_offline") {
+          const cfg = getGlobalConfig();
+          const newVal = !(cfg.enableOfflineEngine !== false);
+          updateGlobalConfig({ enableOfflineEngine: newVal });
+          await sendMessage(chatId.toString(), `⚙️ **موتور استراتژی آفلاین SMC:** ${newVal ? "🟢 فعال شد" : "🔴 غیرفعال شد"}`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_toggle_def_engine") {
+          const cfg = getGlobalConfig();
+          const newMode = cfg.defaultEngineMode === "OFFLINE_RULES" ? "ONLINE_AI" : "OFFLINE_RULES";
+          updateGlobalConfig({ defaultEngineMode: newMode });
+          await sendMessage(chatId.toString(), `⚙️ **موتور پیش‌فرض سیستم تغییر کرد به:** ${newMode === "ONLINE_AI" ? "🧠 هوش مصنوعی آنلاین" : "📚 دانش آفلاین SMC"}`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_toggle_hunter") {
+          const cfg = getGlobalConfig();
+          const current = cfg.autoHunter?.enabled === true;
+          updateGlobalConfig({
+            autoHunter: {
+              ...cfg.autoHunter,
+              enabled: !current,
+            }
+          });
+          await sendMessage(chatId.toString(), `⚙️ **شکارچی خودکار سراسری (Auto-Pilot):** ${!current ? "🟢 فعال شد" : "🔴 غیرفعال شد"}`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_toggle_tg_bc") {
+          const cfg = getGlobalConfig();
+          const current = cfg.autoHunter?.autoBroadcastToTelegram === true;
+          updateGlobalConfig({
+            autoHunter: {
+              ...cfg.autoHunter,
+              autoBroadcastToTelegram: !current,
+            }
+          });
+          await sendMessage(chatId.toString(), `⚙️ **ارسال خودکار سیگنال به کانال/گروه تلگرام:** ${!current ? "🟢 روشن شد" : "🔴 خاموش شد"}`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_toggle_bale_bc") {
+          const cfg = getGlobalConfig();
+          const current = cfg.autoHunter?.autoBroadcastToBale === true;
+          updateGlobalConfig({
+            autoHunter: {
+              ...cfg.autoHunter,
+              autoBroadcastToBale: !current,
+            }
+          });
+          await sendMessage(chatId.toString(), `⚙️ **ارسال خودکار سیگنال به کانال/گروه پیام‌رسان بله:** ${!current ? "🟢 روشن شد" : "🔴 خاموش شد"}`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_interval_menu") {
+          await sendMessage(chatId.toString(), `⏱️ **انتخاب بازه زمانی اسکن و ارسال خودکار شکارچی (Auto-Hunter Interval):**`, {
+            inlineKeyboard: [
+              [
+                { text: "⚡ هر ۱ دقیقه", callback_data: "/admin_set_interval 1", style: "primary" },
+                { text: "⏱️ هر ۳ دقیقه", callback_data: "/admin_set_interval 3", style: "primary" },
+                { text: "⏱️ هر ۵ دقیقه", callback_data: "/admin_set_interval 5", style: "primary" },
+              ],
+              [
+                { text: "⏱️ هر ۱۵ دقیقه", callback_data: "/admin_set_interval 15", style: "primary" },
+                { text: "⏱️ هر ۳۰ دقیقه", callback_data: "/admin_set_interval 30", style: "primary" },
+                { text: "⏱️ هر ۱ ساعت", callback_data: "/admin_set_interval 60", style: "primary" },
+              ],
+              [{ text: "🔙 بازگشت به پنل مدیریت", callback_data: "/admin_panel" }]
+            ],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+
+        if (data.startsWith("/admin_set_interval ")) {
+          const mins = parseInt(data.replace("/admin_set_interval ", ""), 10) || 3;
+          const cfg = getGlobalConfig();
+          updateGlobalConfig({
+            autoHunter: {
+              ...cfg.autoHunter,
+              intervalMinutes: mins,
+            }
+          });
+          await sendMessage(chatId.toString(), `✅ **بازه زمانی شکارچی با موفقیت به هر ${mins} دقیقه تغییر یافت.**`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_risk_menu") {
+          await sendMessage(chatId.toString(), `🛡️ **انتخاب پروفایل پیش‌فرض مدیریت ریسک سیستم برای کاربران جدید:**`, {
+            inlineKeyboard: [
+              [
+                { text: "🛡️ کم‌ریسک (Conservative - 1%)", callback_data: "/admin_set_risk conservative", style: "success" },
+                { text: "⚖️ متعادل (Moderate - 2%)", callback_data: "/admin_set_risk moderate", style: "primary" },
+              ],
+              [
+                { text: "🚀 تهاجمی (Aggressive - 3.5%)", callback_data: "/admin_set_risk aggressive", style: "danger" }
+              ],
+              [{ text: "🔙 بازگشت به پنل مدیریت", callback_data: "/admin_panel" }]
+            ],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+
+        if (data.startsWith("/admin_set_risk ")) {
+          const profile = data.replace("/admin_set_risk ", "") as any;
+          const cfg = getGlobalConfig();
+          updateGlobalConfig({
+            riskSettings: {
+              ...cfg.riskSettings,
+              profile,
+              maxRiskPercent: profile === 'conservative' ? 1.0 : profile === 'aggressive' ? 3.5 : 2.0,
+              maxLeverage: profile === 'conservative' ? 5 : profile === 'aggressive' ? 25 : 15,
+              minRRRatio: profile === 'conservative' ? 2.0 : profile === 'aggressive' ? 3.5 : 2.5,
+              tpStyle: profile === 'conservative' ? 'tight_safe' : profile === 'aggressive' ? 'extended_runner' : 'balanced',
+            }
+          });
+          const profFa = profile === 'conservative' ? '🛡️ کم‌ریسک' : profile === 'aggressive' ? '🚀 تهاجمی' : '⚖️ متعادل';
+          await sendMessage(chatId.toString(), `✅ پروفایل پیش‌فرض سیستم به **${profFa}** تغییر یافت.`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_tf_menu") {
+          await sendMessage(chatId.toString(), `⏱️ **انتخاب تایم‌فریم پیش‌فرض سراسری سیستم:**`, {
+            inlineKeyboard: [
+              [
+                { text: "1m", callback_data: "/admin_set_tf 1m" },
+                { text: "5m", callback_data: "/admin_set_tf 5m" },
+                { text: "15m", callback_data: "/admin_set_tf 15m" },
+              ],
+              [
+                { text: "1h", callback_data: "/admin_set_tf 1h" },
+                { text: "4h", callback_data: "/admin_set_tf 4h" },
+                { text: "1D", callback_data: "/admin_set_tf 1D" },
+              ],
+              [{ text: "🔙 بازگشت به پنل مدیریت", callback_data: "/admin_panel" }]
+            ],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+
+        if (data.startsWith("/admin_set_tf ")) {
+          const tf = data.replace("/admin_set_tf ", "") as any;
+          updateGlobalConfig({ defaultTimeframe: tf });
+          await sendMessage(chatId.toString(), `✅ تایم‌فریم پیش‌فرض سیستم به **${tf}** تغییر کرد.`);
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        }
+
+        if (data === "/admin_prompt_broadcast") {
+          updateChatSettings(chatId, { pendingAdminBroadcast: true });
+          await sendMessage(chatId.toString(), `📢 **ارسال پیام همگانی (Broadcast) به تمام کاربران** 📢\n\nلطفا متن پیام مورد نظر را بنویسید و ارسال فرمایید تا بلافاصله به تمام کاربران ثبت‌شده در سیستم ارسال گردد:`, {
+            inlineKeyboard: [[{ text: "🔙 انصراف و بازگشت", callback_data: "/admin_panel" }]],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+
+        if (data === "/admin_prompt_chpass") {
+          updateChatSettings(chatId, { pendingAdminPasscode: true });
+          await sendMessage(chatId.toString(), `🔑 **تغییر رمز عبور پنل مدیریت (Admin Passcode)**\n\nلطفا رمز عبور جدید مورد نظرتان را تایپ و ارسال کنید:`, {
+            inlineKeyboard: [[{ text: "🔙 انصراف و بازگشت", callback_data: "/admin_panel" }]],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+
+        if (data === "/admin_logout") {
+          deauthenticateAdmin(chatId);
+          await sendMessage(chatId.toString(), `🚪 **شما با موفقیت از حالت ادمین خارج شدید.**`, {
+            replyKeyboard: mainReplyMenu,
+          });
+          return runAction(chatId, "/main_menu");
+        }
+      }
+
+      if (data.startsWith("/quote_menu ")) {
+        const base = data.replace("/quote_menu ", "").trim();
+        await showQuoteSelectionMenu(chatId, base, botType, token, settings, mainReplyMenu);
+        return;
+      }
+
+      if (data.startsWith("/quote_select ")) {
+        const parts = data.replace("/quote_select ", "").trim().split(" ");
+        const base = parts[0];
+        const quote = parts[1] || "USDT";
+        const symbol = `${base}${quote}`;
+        return handleSymbolSearch(chatId, symbol, botType, token, settings, mainReplyMenu);
+      }
+
+      if (data.startsWith("/prompt_quote ")) {
+        const base = data.replace("/prompt_quote ", "").trim();
+        updateChatSettings(chatId, { pendingCustomQuoteBase: base });
+        await sendMessage(chatId.toString(), `✏️ **ورود دستی واحد معاملاتی برای نماد #${base}**\n\nلطفا نام واحد مورد نظر خود را بنویسید و ارسال کنید (مثلاً: \`USDT\`، \`USD\`، \`EUR\`، \`IRT\`، \`USDC\`، \`BTC\`، \`DAI\`):\n\nپس از ارسال، جفت‌ارز **${base}/واحد** به صورت خودکار تحلیل و نمایش داده می‌شود.`, {
+          inlineKeyboard: [
+            [{ text: `💵 پیش‌فرض تتر (${base}USDT)`, callback_data: `/analyze ${base}USDT` }],
+            [{ text: "🔙 انصراف و بازگشت", callback_data: `/quote_menu ${base}` }]
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
       if (data === "/scanner") {
-        const setups = await Promise.all(
-          POPULAR_MARKETS.slice(0, 3).map(async (m) => {
-            const md = await fetchLiveMarketData(m.symbol, settings.timeframe || "15m");
-            return generateAITradingAnalysis({
-              symbol: m.symbol,
-              timeframe: settings.timeframe,
-              engineMode: settings.engineMode,
-              actionPreference: settings.directionPreference,
-              riskSettings: {
-                profile: settings.riskProfile,
-                maxRiskPercent: settings.riskPercent,
-                maxLeverage: settings.leverage,
-                minRRRatio: settings.minRRRatio,
-                tpStyle: settings.tpStyle,
-              }
-            }, md);
-          })
-        );
-        const scanHeader = `🎯 **اسکن فوری برترین فرصت‌های بازار** 🎯\n\n`;
-        const text = scanHeader + setups.map(s => `🔹 **${s.symbol}**: جهت ${s.action === "LONG" ? "🟢 لانگ" : s.action === "SHORT" ? "🔴 شورت" : "⏳ انتظار"} | ورود: $${s.optimalEntry} | تارگت: $${s.takeProfits[0]?.price}`).join("\n\n");
+        await sendMessage(chatId.toString(), `⏳ **در حال اسکن عمیق و محاسباتی بازار با فرمول‌های اسمارت‌مانی و اندیکاتورهای زنده...**\n\nلطفاً چند ثانیه شکیبا باشید تا وضعیت RSI، سطوح اردربلاک، میانگین‌های EMA و حجم نقدینگی به صورت لحظه‌ای ارزیابی شوند.`, {
+          replyKeyboard: mainReplyMenu,
+        });
+
+        const pool = (settings.watchlist && settings.watchlist.length > 0)
+          ? settings.watchlist
+          : ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT', 'BNBUSDT', 'DOGEUSDT', 'ADAUSDT', 'SUIUSDT', 'PEPEUSDT', 'AVAXUSDT', 'LINKUSDT', 'XAUUSD'];
+
+        const opps = await scanAuthenticMarketOpportunities(pool, settings.timeframe || "15m", settings);
+
+        const scanHeader = `🎯 **شکارچی و اسکنر هوشمند فرصت‌های معاملاتی بازار** 🎯\n` +
+          `⚡ **روش ارزیابی:** تحلیل زنده کندل‌ها، تقاطع میانگین‌های متحرک، شاخص RSI و اردربلاک‌های SMC (بدون تکرار تصادفی)\n\n`;
+
+        if (opps.length === 0) {
+          await sendMessage(chatId.toString(), scanHeader + `⚠️ در حال حاضر هیچ دارایی‌ای شرایط ورود با ضریب اطمینان بالا (A+) را برآورده نکرده است. لطفا دقایقی دیگر مجدداً اسکن کنید یا تایم‌فریم را تغییر دهید.`, {
+            inlineKeyboard: [
+              [{ text: "🔄 اسکن مجدد بازار", callback_data: "/scanner" }],
+              [{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }]
+            ],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+
+        const topOpps = opps.slice(0, 4);
+        const text = scanHeader + topOpps.map((s, idx) => {
+          const actionFa = s.action === "LONG" ? "🟢 لانگ (خرید)" : "🔴 شورت (فروش)";
+          return `${idx + 1}. 🔹 **#${s.symbol}** (${actionFa} | گرید: **${s.grade}**)\n` +
+                 `   • 💰 قیمت زنده: **$${s.currentPrice.toLocaleString()}**\n` +
+                 `   • 📍 زون ورود: **$${s.entryZone[0].toLocaleString()} - $${s.entryZone[1].toLocaleString()}**\n` +
+                 `   • 🎯 تارگت اول: **$${s.tp1.toLocaleString()}** | 🛑 استاپ: **$${s.sl.toLocaleString()}**\n` +
+                 `   • 💎 نسبت ریسک/ریوارد: **1:${s.rrRatio}** | شاخص RSI: **${s.rsi.toFixed(1)}**\n` +
+                 `   • 🔍 علت تکنیکال: _${s.setupReasonFa}_`;
+        }).join("\n\n----------------------------------------\n\n");
+
         await sendMessage(chatId.toString(), text, {
-          inlineKeyboard: setups.map(s => [{ text: `📊 دریافت ستاپ کامل ${s.symbol}`, callback_data: `/analyze ${s.symbol}` }]),
+          inlineKeyboard: [
+            ...topOpps.map(s => [{ text: `📊 دریافت ستاپ جامع و کامل #${s.symbol}`, callback_data: `/analyze ${s.symbol}` }]),
+            [{ text: "🔄 به‌روزرسانی اسکنر زنده", callback_data: "/scanner" }, { text: "🔍 مدیریت دیده‌بان", callback_data: "/watchlist_menu" }],
+            [{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }]
+          ],
           replyKeyboard: mainReplyMenu,
         });
         return;
@@ -1332,7 +1763,63 @@ ${enableAi ? "🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلاد
         ],
         replyKeyboard: mainReplyMenu,
       });
+    } else if (text === "👑 پنل مدیریت ادمین" || text === "/admin" || text === "/admin_panel" || text === "ادمین") {
+      if (!isAdmin(chatId)) {
+        return renderAdminAuthPrompt(chatId, botType, token, mainReplyMenu);
+      }
+      return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
     } else {
+      // Check if user was entering admin passcode
+      if (settings.pendingAdminPasscode) {
+        updateChatSettings(chatId, { pendingAdminPasscode: undefined });
+        if (authenticateAdmin(chatId, text)) {
+          await sendMessage(chatId.toString(), `✅ **احراز هویت ادمین با موفقیت انجام شد.**\nخوش آمدید، به پنل مدیریت متصل شدید.`, { replyKeyboard: mainReplyMenu });
+          return renderAdminDashboard(chatId, botType, token, mainReplyMenu);
+        } else {
+          await sendMessage(chatId.toString(), `❌ **رمز عبور ادمین نادرست است.**\nدسترسی به بخش مدیریت برای شما امکان‌پذیر نیست.`, {
+            inlineKeyboard: [[{ text: "🔙 منوی اصلی", callback_data: "/main_menu" }]],
+            replyKeyboard: mainReplyMenu,
+          });
+          return;
+        }
+      }
+
+      // Check if admin was sending a broadcast message
+      if (settings.pendingAdminBroadcast && isAdmin(chatId)) {
+        updateChatSettings(chatId, { pendingAdminBroadcast: undefined });
+        const allChatKeys = Object.keys(settingsStore).filter(k => !k.startsWith("__"));
+        let count = 0;
+        const bcText = `📢 **اطلاعیه رسمی مدیریت ربات تریدینگ‌ویو** 📢\n\n${text}\n\n------------------------\n_ارسال شده توسط ادمین سیستم_`;
+        for (const targetId of allChatKeys) {
+          try {
+            if (botType === "telegram") {
+              await sendTelegramMessage(token, targetId, bcText);
+            } else {
+              await sendBaleMessage(token, targetId, bcText);
+            }
+            count++;
+          } catch (e) {
+            // Ignore individual failed chat deliveries
+          }
+        }
+        await sendMessage(chatId.toString(), `✅ **پیام همگانی با موفقیت برای ${count} چت/کاربر ارسال شد.**`, {
+          inlineKeyboard: [[{ text: "🔙 بازگشت به پنل مدیریت", callback_data: "/admin_panel" }]],
+          replyKeyboard: mainReplyMenu,
+        });
+        return;
+      }
+
+      // Check if user was in the middle of typing a custom quote currency for a base asset
+      if (settings.pendingCustomQuoteBase) {
+        const base = settings.pendingCustomQuoteBase;
+        updateChatSettings(chatId, { pendingCustomQuoteBase: undefined });
+        const quote = text.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (quote) {
+          const fullPair = `${base}${quote}`;
+          return handleSymbolSearch(chatId, fullPair, botType, token, settings, mainReplyMenu);
+        }
+      }
+
       const numVal = parseFloat(text);
       if (!isNaN(numVal) && /^[0-9]+(\.[0-9]+)?$/.test(text.trim())) {
         await sendMessage(chatId.toString(), `❓ **تشخیص خودکار ورودی عددی**\n\nشما عدد **${text}** را بدون دستور ارسال کرده‌اید. مایلید این مقدار روی کدام‌یک از تنظیمات معاملاتی شما اعمال شود؟`, {
@@ -1357,8 +1844,8 @@ ${enableAi ? "🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلاد
       const parts = text.split(/\s+/);
       const symbol = parts[0].toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-      // Check if it's a plain symbol (just one word, 3-12 characters)
-      const isPlainSymbol = /^[A-Z0-9]{3,12}$/i.test(text);
+      // Check if it's a plain symbol (just one word, 2-12 characters)
+      const isPlainSymbol = /^[A-Z0-9]{2,12}$/i.test(text);
       if (isPlainSymbol && parts.length === 1) {
         await handleSymbolSearch(chatId, symbol, botType, token, settings, mainReplyMenu);
       } else {

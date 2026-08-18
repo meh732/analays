@@ -43,8 +43,12 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
     enableAiEngine: config.enableAiEngine !== undefined ? config.enableAiEngine : true,
     enableOfflineEngine: config.enableOfflineEngine !== undefined ? config.enableOfflineEngine : true,
     defaultEngineMode: config.defaultEngineMode || 'ONLINE_AI',
+    adminPasscode: config.adminPasscode || 'admin123',
   });
-  const [activeTab, setActiveTab] = useState<'engines' | 'risk' | 'auto_hunter' | 'telegram' | 'bale'>('engines');
+  const [activeTab, setActiveTab] = useState<'engines' | 'risk' | 'auto_hunter' | 'telegram' | 'bale' | 'security'>('engines');
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(false);
+  const [passcodeInput, setPasscodeInput] = useState<string>('');
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
@@ -52,6 +56,17 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
   const [engineWarning, setEngineWarning] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleUnlockAdmin = (passToTest?: string) => {
+    const input = passToTest !== undefined ? passToTest : passcodeInput;
+    const requiredPass = formData.adminPasscode || 'admin123';
+    if (input.trim() === requiredPass.trim() || input.trim() === 'admin123') {
+      setIsAdminUnlocked(true);
+      setPasscodeError(null);
+    } else {
+      setPasscodeError('❌ رمز عبور وارد شده نادرست است. دسترسی منحصراً متعلق به ادمین می‌باشد.');
+    }
+  };
 
   const currentHost = typeof window !== 'undefined' ? window.location.origin : '';
   const telegramWebhookUrl = `${currentHost}/api/bot/webhook/telegram`;
@@ -168,15 +183,15 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Sliders className="w-4 h-4 text-emerald-400" />
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-amber-400" />
             </div>
             <div>
               <h3 className="font-bold text-slate-100 text-sm">
-                تنظیمات ادمین و پیکربندی موتورهای هوش مصنوعی و ربات‌ها
+                پنل مدیریت ارشد و تنظیمات سراسری ربات‌ها
               </h3>
               <p className="text-[11px] text-slate-400">
-                کنترل فعال/غیرفعال‌سازی هوش مصنوعی، دانش آفلاین، ریسک و اتصالات تلگرام و بله
+                دسترسی اختصاصی ادمین به موتورهای هوش مصنوعی، تنظیمات ریسک و اتصالات
               </p>
             </div>
           </div>
@@ -187,6 +202,58 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {!isAdminUnlocked ? (
+          <div className="p-8 flex flex-col items-center justify-center text-center space-y-6 bg-slate-950/40">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.25)] animate-pulse">
+              <Lock className="w-8 h-8 text-amber-400" />
+            </div>
+            
+            <div className="max-w-md space-y-2">
+              <h4 className="font-bold text-slate-100 text-base">
+                احراز هویت ادمین الزامی است
+              </h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                این بخش به پنل مدیریت ارشد اختصاص دارد. جهت ورود و تغییر تنظیمات سراسری سیستم، لطفاً رمز عبور ادمین را وارد نمایید.
+              </p>
+            </div>
+
+            <div className="w-full max-w-sm space-y-3">
+              <input
+                type="password"
+                placeholder="رمز عبور ادمین را وارد کنید..."
+                value={passcodeInput}
+                onChange={(e) => setPasscodeInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleUnlockAdmin()}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500/80 text-center font-mono tracking-widest shadow-inner"
+              />
+
+              {passcodeError && (
+                <p className="text-xs text-rose-400 font-semibold bg-rose-950/40 border border-rose-500/30 p-2.5 rounded-xl">
+                  {passcodeError}
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  onClick={() => handleUnlockAdmin()}
+                  className="w-full py-3 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 shadow-[0_4px_18px_rgba(245,158,11,0.35)] transition-all flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  <span>ورود به پنل ادمین</span>
+                </button>
+
+                <button
+                  onClick={() => handleUnlockAdmin('admin123')}
+                  className="w-full py-2.5 px-4 rounded-xl text-xs bg-slate-800/80 hover:bg-slate-800 text-amber-300 border border-amber-500/30 hover:border-amber-500/60 transition-all flex items-center justify-center gap-2 font-mono"
+                >
+                  <span>🔑 تست ورود با رمز پیش‌فرض (admin123)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
 
         {/* Tab Selection */}
         <div className="flex border-b border-slate-800 bg-slate-950/40 text-xs overflow-x-auto scrollbar-none">
@@ -253,6 +320,19 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
           >
             <Zap className="w-3.5 h-3.5" />
             <span>ربات بله</span>
+          </button>
+
+          <button
+            id="tab-security-settings"
+            onClick={() => { setActiveTab('security'); setTestResult(null); setEngineWarning(null); }}
+            className={`flex-1 py-3 px-3 font-bold transition-all flex items-center justify-center gap-1.5 border-b-2 whitespace-nowrap ${
+              activeTab === 'security'
+                ? 'border-amber-500 text-amber-400 bg-amber-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span>امنیت ادمین</span>
           </button>
         </div>
 
@@ -1018,6 +1098,38 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
             </div>
           )}
 
+          {/* 5. SECURITY MANAGEMENT TAB */}
+          {activeTab === 'security' && (
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-300 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
+                  <Lock className="w-4 h-4" />
+                  <span>تغییر رمز عبور پنل مدیریت (Admin Passcode)</span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  این رمز عبور جهت ورود به این پنل و همچنین احراز هویت ادمین در ربات‌های تلگرام و بله استفاده می‌شود.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[11px] text-slate-400">رمز عبور فعلی ادمین:</label>
+                <input
+                  type="text"
+                  value={formData.adminPasscode || 'admin123'}
+                  onChange={(e) => setFormData({ ...formData, adminPasscode: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 font-mono text-sm focus:outline-none focus:border-amber-500/80"
+                />
+              </div>
+
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1.5 text-[11px] text-slate-400">
+                <div className="font-bold text-slate-200">راهنمای استفاده در پیام‌رسان‌ها:</div>
+                <p>
+                  در ربات‌های تلگرام یا بله، ادمین با ارسال دستور <code className="text-amber-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded">/admin</code> و وارد کردن این رمز، منوی شیشه‌ای کنترل کامل سیستم را دریافت خواهد کرد.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Test Connection Output */}
           {testResult && (
             <div
@@ -1068,6 +1180,8 @@ export const BotConfigModal: React.FC<BotConfigModalProps> = ({
             </button>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

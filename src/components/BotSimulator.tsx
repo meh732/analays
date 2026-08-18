@@ -90,31 +90,31 @@ export const BotSimulator: React.FC<BotSimulatorProps> = ({
     
     // Success / Agree / Long / Safe Green Glass
     if (style === 'success' || t.includes('موافق') || t.includes('تایید') || t.includes('long') || t.includes('لانگ') || t.includes('online')) {
-      return 'bg-gradient-to-r from-emerald-500/25 via-emerald-600/20 to-teal-500/25 hover:from-emerald-500/40 hover:to-teal-500/40 text-emerald-100 border-emerald-400/50 shadow-[0_4px_16px_rgba(16,185,129,0.25)] hover:shadow-[0_6px_22px_rgba(16,185,129,0.4)] hover:border-emerald-300/80';
+      return 'bg-emerald-950/85 hover:bg-emerald-900/95 text-emerald-100 border-2 border-emerald-500/70 shadow-[0_4px_18px_rgba(16,185,129,0.35)] hover:shadow-[0_6px_24px_rgba(16,185,129,0.5)]';
     }
     
     // Danger / Short / Remove Rose Glass
-    if (style === 'danger' || t.includes('حذف') || t.includes('short') || t.includes('شورت') || t.includes('خروج') || t.includes('ضرر') || t.includes('stop')) {
-      return 'bg-gradient-to-r from-rose-500/25 via-rose-600/20 to-red-500/25 hover:from-rose-500/40 hover:to-red-500/40 text-rose-100 border-rose-400/50 shadow-[0_4px_16px_rgba(244,63,94,0.25)] hover:shadow-[0_6px_22px_rgba(244,63,94,0.4)] hover:border-rose-300/80';
+    if (style === 'danger' || t.includes('حذف') || t.includes('remove') || t.includes('short') || t.includes('شورت') || t.includes('خروج') || t.includes('ضرر') || t.includes('stop')) {
+      return 'bg-rose-950/85 hover:bg-rose-900/95 text-rose-100 border-2 border-rose-500/70 shadow-[0_4px_18px_rgba(244,63,94,0.35)] hover:shadow-[0_6px_24px_rgba(244,63,94,0.5)]';
     }
     
     // Amber / Gold / Rules / BTC Glass
     if (style === 'warning' || t.includes('قوانین') || t.includes('مسئولیت') || t.includes('btc') || t.includes('بیت') || t.includes('طلا') || t.includes('xau')) {
-      return 'bg-gradient-to-r from-amber-500/25 via-yellow-600/20 to-amber-500/25 hover:from-amber-500/40 hover:to-yellow-500/40 text-amber-100 border-amber-400/50 shadow-[0_4px_16px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.4)] hover:border-amber-300/80';
+      return 'bg-amber-950/85 hover:bg-amber-900/95 text-amber-100 border-2 border-amber-500/70 shadow-[0_4px_18px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_24px_rgba(245,158,11,0.5)]';
     }
     
     // Indigo / AI / Hunter / Calc Glass
-    if (t.includes('هوش مصنوعی') || t.includes('hunter') || t.includes('شکارچی') || t.includes('sol') || t.includes('حجم') || t.includes('calc') || t.includes('مارجین')) {
-      return 'bg-gradient-to-r from-indigo-500/25 via-purple-600/20 to-indigo-500/25 hover:from-indigo-500/40 hover:to-purple-500/40 text-indigo-100 border-indigo-400/50 shadow-[0_4px_16px_rgba(99,102,241,0.25)] hover:shadow-[0_6px_22px_rgba(99,102,241,0.4)] hover:border-indigo-300/80';
+    if (t.includes('هوش مصنوعی') || t.includes('hunter') || t.includes('شکارچی') || t.includes('sol') || t.includes('حجم') || t.includes('calc') || t.includes('مارجین') || t.includes('position')) {
+      return 'bg-indigo-950/85 hover:bg-indigo-900/95 text-indigo-100 border-2 border-indigo-500/70 shadow-[0_4px_18px_rgba(99,102,241,0.35)] hover:shadow-[0_6px_24px_rgba(99,102,241,0.5)]';
     }
     
     // Cyan / SMC / Offline / ETH / Scanner Glass
-    if (t.includes('آفلاین') || t.includes('offline') || t.includes('smc') || t.includes('اتریوم') || t.includes('eth') || t.includes('اسکنر') || t.includes('scanner') || t.includes('دیده‌بان') || t.includes('watchlist')) {
-      return 'bg-gradient-to-r from-cyan-500/25 via-teal-600/20 to-cyan-500/25 hover:from-cyan-500/40 hover:to-teal-500/40 text-cyan-100 border-cyan-400/50 shadow-[0_4px_16px_rgba(6,182,212,0.25)] hover:shadow-[0_6px_22px_rgba(6,182,212,0.4)] hover:border-cyan-300/80';
+    if (t.includes('آفلاین') || t.includes('offline') || t.includes('smc') || t.includes('اتریوم') || t.includes('eth') || t.includes('اسکنر') || t.includes('scanner') || t.includes('دیده‌بان') || t.includes('watchlist') || t.includes('افزودن')) {
+      return 'bg-cyan-950/85 hover:bg-cyan-900/95 text-cyan-100 border-2 border-cyan-500/70 shadow-[0_4px_18px_rgba(6,182,212,0.35)] hover:shadow-[0_6px_24px_rgba(6,182,212,0.5)]';
     }
     
-    // Default Telegram Sky Glass
-    return 'bg-gradient-to-r from-sky-500/25 via-blue-600/20 to-sky-500/25 hover:from-sky-500/40 hover:to-blue-500/40 text-sky-100 border-sky-400/50 shadow-[0_4px_16px_rgba(14,165,233,0.25)] hover:shadow-[0_6px_22px_rgba(14,165,233,0.4)] hover:border-sky-300/80';
+    // Default Telegram Sky Blue Glass
+    return 'bg-sky-950/85 hover:bg-sky-900/95 text-sky-100 border-2 border-sky-500/70 shadow-[0_4px_18px_rgba(14,165,233,0.35)] hover:shadow-[0_6px_24px_rgba(14,165,233,0.5)]';
   };
 
   return (
@@ -459,44 +459,44 @@ export const BotSimulator: React.FC<BotSimulatorProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {/* 1. Emerald / Scanner */}
               <button
                 onClick={() => handleCommandClick('🎯 اسکنر هوشمند بازار')}
                 disabled={isLoading}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/25 via-emerald-600/20 to-teal-500/25 hover:from-emerald-500/40 hover:to-teal-500/40 border border-emerald-400/50 text-emerald-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(16,185,129,0.25)] hover:shadow-[0_6px_22px_rgba(16,185,129,0.4)] active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-2xl bg-emerald-950/80 hover:bg-emerald-900/90 border-2 border-emerald-500/60 text-emerald-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(16,185,129,0.35)] hover:shadow-[0_6px_28px_rgba(16,185,129,0.5)] active:scale-95 disabled:opacity-50"
               >
-                <div className="w-6 h-6 rounded-lg bg-emerald-500/30 flex items-center justify-center shrink-0 border border-emerald-400/50">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                <div className="w-7 h-7 rounded-xl bg-emerald-500/30 flex items-center justify-center shrink-0 border border-emerald-400/60 text-emerald-300">
+                  <Sparkles className="w-4 h-4" />
                 </div>
-                <span className="truncate">🎯 اسکنر هوشمند بازار</span>
+                <span className="truncate font-bold">🎯 اسکنر هوشمند</span>
               </button>
 
-              {/* 2. Online AI Button (Rendered only if enabled) */}
+              {/* 2. Online AI Button */}
               {isAiEnabled && (
                 <button
                   onClick={() => handleCommandClick('🧠 تحلیل هوش مصنوعی')}
                   disabled={isLoading}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-500/25 via-purple-600/20 to-indigo-500/25 hover:from-indigo-500/40 hover:to-purple-500/40 border border-indigo-400/50 text-indigo-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(99,102,241,0.25)] hover:shadow-[0_6px_22px_rgba(99,102,241,0.4)] active:scale-95 disabled:opacity-50"
+                  className="p-3 rounded-2xl bg-indigo-950/80 hover:bg-indigo-900/90 border-2 border-indigo-500/60 text-indigo-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(99,102,241,0.35)] hover:shadow-[0_6px_28px_rgba(99,102,241,0.5)] active:scale-95 disabled:opacity-50"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-indigo-500/30 flex items-center justify-center shrink-0 border border-indigo-400/50">
-                    <Brain className="w-3.5 h-3.5 text-indigo-300" />
+                  <div className="w-7 h-7 rounded-xl bg-indigo-500/30 flex items-center justify-center shrink-0 border border-indigo-400/60 text-indigo-300">
+                    <Brain className="w-4 h-4" />
                   </div>
-                  <span className="truncate">🧠 تحلیل هوش مصنوعی</span>
+                  <span className="truncate font-bold">🧠 تحلیل هوش مصنوعی</span>
                 </button>
               )}
 
-              {/* 3. Offline SMC Button (Rendered only if enabled) */}
+              {/* 3. Offline SMC Button */}
               {isOfflineEnabled && (
                 <button
                   onClick={() => handleCommandClick('📚 استراتژی آفلاین SMC')}
                   disabled={isLoading}
-                  className="p-2.5 rounded-xl bg-gradient-to-r from-cyan-500/25 via-teal-600/20 to-cyan-500/25 hover:from-cyan-500/40 hover:to-teal-500/40 border border-cyan-400/50 text-cyan-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(6,182,212,0.25)] hover:shadow-[0_6px_22px_rgba(6,182,212,0.4)] active:scale-95 disabled:opacity-50"
+                  className="p-3 rounded-2xl bg-cyan-950/80 hover:bg-cyan-900/90 border-2 border-cyan-500/60 text-cyan-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(6,182,212,0.35)] hover:shadow-[0_6px_28px_rgba(6,182,212,0.5)] active:scale-95 disabled:opacity-50"
                 >
-                  <div className="w-6 h-6 rounded-lg bg-cyan-500/30 flex items-center justify-center shrink-0 border border-cyan-400/50">
-                    <Layers className="w-3.5 h-3.5 text-cyan-300" />
+                  <div className="w-7 h-7 rounded-xl bg-cyan-500/30 flex items-center justify-center shrink-0 border border-cyan-400/60 text-cyan-300">
+                    <Layers className="w-4 h-4" />
                   </div>
-                  <span className="truncate">📚 استراتژی آفلاین SMC</span>
+                  <span className="truncate font-bold">📚 استراتژی آفلاین SMC</span>
                 </button>
               )}
 
@@ -504,72 +504,72 @@ export const BotSimulator: React.FC<BotSimulatorProps> = ({
               <button
                 onClick={() => handleCommandClick('📊 تحلیل فوری ارزها')}
                 disabled={isLoading}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-yellow-600/20 to-amber-500/25 hover:from-amber-500/40 hover:to-yellow-500/40 border border-amber-400/50 text-amber-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.4)] active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-2xl bg-amber-950/80 hover:bg-amber-900/90 border-2 border-amber-500/60 text-amber-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(245,158,11,0.35)] hover:shadow-[0_6px_28px_rgba(245,158,11,0.5)] active:scale-95 disabled:opacity-50"
               >
-                <div className="w-6 h-6 rounded-lg bg-amber-500/30 flex items-center justify-center shrink-0 border border-amber-400/50">
-                  <Zap className="w-3.5 h-3.5 text-amber-300" />
+                <div className="w-7 h-7 rounded-xl bg-amber-500/30 flex items-center justify-center shrink-0 border border-amber-400/60 text-amber-300">
+                  <Zap className="w-4 h-4" />
                 </div>
-                <span className="truncate">📊 تحلیل فوری ارزها</span>
+                <span className="truncate font-bold">📊 تحلیل فوری ارزها</span>
               </button>
 
               {/* 5. Fuchsia / Position & Margin Calculator */}
               <button
                 onClick={() => handleCommandClick('🧮 محاسبه حجم و مارجین')}
                 disabled={isLoading}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-fuchsia-500/25 via-pink-600/20 to-purple-500/25 hover:from-fuchsia-500/40 hover:to-purple-500/40 border border-fuchsia-400/50 text-fuchsia-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(217,70,239,0.25)] hover:shadow-[0_6px_22px_rgba(217,70,239,0.4)] active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-2xl bg-fuchsia-950/80 hover:bg-fuchsia-900/90 border-2 border-fuchsia-500/60 text-fuchsia-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(217,70,239,0.35)] hover:shadow-[0_6px_28px_rgba(217,70,239,0.5)] active:scale-95 disabled:opacity-50"
               >
-                <div className="w-6 h-6 rounded-lg bg-fuchsia-500/30 flex items-center justify-center shrink-0 border border-fuchsia-400/50">
-                  <Calculator className="w-3.5 h-3.5 text-fuchsia-300" />
+                <div className="w-7 h-7 rounded-xl bg-fuchsia-500/30 flex items-center justify-center shrink-0 border border-fuchsia-400/60 text-fuchsia-300">
+                  <Calculator className="w-4 h-4" />
                 </div>
-                <span className="truncate">🧮 محاسبه حجم و مارجین</span>
+                <span className="truncate font-bold">🧮 محاسبه حجم و مارجین</span>
               </button>
 
               {/* 6. Sky Blue / Risk Settings */}
               <button
                 onClick={() => handleCommandClick('⚙️ تنظیمات ریسک و سود')}
                 disabled={isLoading}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-sky-500/25 via-blue-600/20 to-sky-500/25 hover:from-sky-500/40 hover:to-blue-500/40 border border-sky-400/50 text-sky-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(14,165,233,0.25)] hover:shadow-[0_6px_22px_rgba(14,165,233,0.4)] active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-2xl bg-sky-950/80 hover:bg-sky-900/90 border-2 border-sky-500/60 text-sky-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(14,165,233,0.35)] hover:shadow-[0_6px_28px_rgba(14,165,233,0.5)] active:scale-95 disabled:opacity-50"
               >
-                <div className="w-6 h-6 rounded-lg bg-sky-500/30 flex items-center justify-center shrink-0 border border-sky-400/50">
-                  <Sliders className="w-3.5 h-3.5 text-sky-300" />
+                <div className="w-7 h-7 rounded-xl bg-sky-500/30 flex items-center justify-center shrink-0 border border-sky-400/60 text-sky-300">
+                  <Sliders className="w-4 h-4" />
                 </div>
-                <span className="truncate">⚙️ تنظیمات ریسک و سود</span>
+                <span className="truncate font-bold">⚙️ تنظیمات ریسک</span>
               </button>
 
               {/* 7. Mint Teal / Watchlist */}
               <button
                 onClick={() => handleCommandClick('🔍 واچ‌لیست دیده‌بان')}
                 disabled={isLoading}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-teal-500/25 via-emerald-600/20 to-teal-500/25 hover:from-teal-500/40 hover:to-emerald-500/40 border border-teal-400/50 text-teal-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(20,184,166,0.25)] hover:shadow-[0_6px_22px_rgba(20,184,166,0.4)] active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-2xl bg-teal-950/80 hover:bg-teal-900/90 border-2 border-teal-500/60 text-teal-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(20,184,166,0.35)] hover:shadow-[0_6px_28px_rgba(20,184,166,0.5)] active:scale-95 disabled:opacity-50"
               >
-                <div className="w-6 h-6 rounded-lg bg-teal-500/30 flex items-center justify-center shrink-0 border border-teal-400/50">
-                  <Radar className="w-3.5 h-3.5 text-teal-300" />
+                <div className="w-7 h-7 rounded-xl bg-teal-500/30 flex items-center justify-center shrink-0 border border-teal-400/60 text-teal-300">
+                  <Radar className="w-4 h-4" />
                 </div>
-                <span className="truncate">🔍 واچ‌لیست دیده‌بان</span>
+                <span className="truncate font-bold">🔍 واچ‌لیست دیده‌بان</span>
               </button>
 
               {/* 8. Royal Blue / History & Journal */}
               <button
                 onClick={() => handleCommandClick('📂 تاریخچه و ژورنال')}
                 disabled={isLoading}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500/25 via-indigo-600/20 to-blue-500/25 hover:from-blue-500/40 hover:to-indigo-500/40 border border-blue-400/50 text-blue-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(59,130,246,0.25)] hover:shadow-[0_6px_22px_rgba(59,130,246,0.4)] active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-2xl bg-blue-950/80 hover:bg-blue-900/90 border-2 border-blue-500/60 text-blue-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(59,130,246,0.35)] hover:shadow-[0_6px_28px_rgba(59,130,246,0.5)] active:scale-95 disabled:opacity-50"
               >
-                <div className="w-6 h-6 rounded-lg bg-blue-500/30 flex items-center justify-center shrink-0 border border-blue-400/50">
-                  <Activity className="w-3.5 h-3.5 text-blue-300" />
+                <div className="w-7 h-7 rounded-xl bg-blue-500/30 flex items-center justify-center shrink-0 border border-blue-400/60 text-blue-300">
+                  <Activity className="w-4 h-4" />
                 </div>
-                <span className="truncate">📂 تاریخچه و ژورنال</span>
+                <span className="truncate font-bold">📂 تاریخچه و ژورنال</span>
               </button>
 
-              {/* 9. Golden Amber / Terms & Legal Rules */}
+              {/* 9. Golden Orange / Terms & Legal Rules */}
               <button
                 onClick={() => handleCommandClick('⚖️ قوانین و سلب مسئولیت حقوقی')}
                 disabled={isLoading}
-                className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-orange-600/20 to-amber-500/25 hover:from-amber-500/40 hover:to-orange-500/40 border border-amber-400/50 text-amber-100 text-xs font-bold transition-all flex items-center gap-2 shadow-[0_4px_16px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_22px_rgba(245,158,11,0.4)] active:scale-95 disabled:opacity-50"
+                className="p-3 rounded-2xl bg-orange-950/80 hover:bg-orange-900/90 border-2 border-orange-500/60 text-orange-100 text-xs font-black transition-all flex items-center gap-2.5 shadow-[0_4px_20px_rgba(249,115,22,0.35)] hover:shadow-[0_6px_28px_rgba(249,115,22,0.5)] active:scale-95 disabled:opacity-50"
               >
-                <div className="w-6 h-6 rounded-lg bg-amber-500/30 flex items-center justify-center shrink-0 border border-amber-400/50">
-                  <Scale className="w-3.5 h-3.5 text-amber-300" />
+                <div className="w-7 h-7 rounded-xl bg-orange-500/30 flex items-center justify-center shrink-0 border border-orange-400/60 text-orange-300">
+                  <Scale className="w-4 h-4" />
                 </div>
-                <span className="truncate">⚖️ قوانین و سلب مسئولیت</span>
+                <span className="truncate font-bold">⚖️ قوانین حقوقی</span>
               </button>
             </div>
           </div>

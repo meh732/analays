@@ -147,6 +147,7 @@ export interface BotConfig {
   defaultEngineMode: SignalEngineMode;
   defaultTimeframe: Timeframe;
   defaultRiskPercent: number;
+  adminPasscode?: string;
   riskSettings: RiskSettings;
   autoHunter: AutoHunterConfig;
 }

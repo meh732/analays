@@ -68,7 +68,33 @@ export const POPULAR_MARKETS: Array<{
   { symbol: 'MSFT', name: 'Microsoft Corp', category: 'stocks', tvSymbol: 'NASDAQ:MSFT', basePrice: 420.0 },
 ];
 
-export function normalizeSymbol(raw: string): {
+export function parseBaseAndQuote(raw: string): { base: string; quote: string } {
+  let s = raw.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const aliasMap: Record<string, string> = {
+    'RIPPLE': 'XRP',
+    'BITCOIN': 'BTC',
+    'ETHEREUM': 'ETH',
+    'SOLANA': 'SOL',
+    'CARDANO': 'ADA',
+    'DOGECOIN': 'DOGE',
+    'TONCOIN': 'TON',
+    'SHIBA': 'SHIB',
+    'GOLD': 'XAU',
+    'TALA': 'XAU',
+  };
+  if (aliasMap[s]) s = aliasMap[s];
+
+  const knownQuotes = ['USDT', 'USD', 'USDC', 'BUSD', 'EUR', 'IRT', 'TOMAN', 'BTC', 'ETH', 'BNB'];
+  for (const q of knownQuotes) {
+    if (s.endsWith(q) && s.length > q.length) {
+      return { base: s.slice(0, -q.length), quote: q };
+    }
+  }
+
+  return { base: s, quote: 'USDT' };
+}
+
+export function normalizeSymbol(raw: string, preferredQuote?: string): {
   cleanSymbol: string;
   binancePair: string;
   tvSymbol: string;
@@ -100,7 +126,7 @@ export function normalizeSymbol(raw: string): {
     s = aliasMap[s];
   }
 
-  if (s === 'XAUUSD' || s === 'GOLD') {
+  if (s === 'XAUUSD' || s === 'GOLD' || s === 'XAU') {
     return { cleanSymbol: 'XAUUSD', binancePair: 'PAXGUSDT', tvSymbol: 'OANDA:XAUUSD', name: 'Gold / طلا جهانی', category: 'commodities', matchedBasePrice: 2910 };
   }
   if (s === 'EURUSD') {
@@ -111,13 +137,14 @@ export function normalizeSymbol(raw: string): {
     return { cleanSymbol: s, binancePair: '', tvSymbol: `NASDAQ:${s}`, name: s, category: 'stocks', matchedBasePrice: market?.basePrice || 200 };
   }
 
-  const base = s.endsWith('USDT') ? s.slice(0, -4) : s.endsWith('USD') ? s.slice(0, -3) : s;
-  const pair = `${base}USDT`;
-  const known = POPULAR_MARKETS.find(m => m.symbol === pair || m.symbol === base);
+  const { base, quote } = parseBaseAndQuote(s);
+  const targetQuote = preferredQuote ? preferredQuote.toUpperCase() : (quote || 'USDT');
+  const pair = `${base}${targetQuote}`;
+  const known = POPULAR_MARKETS.find(m => m.symbol === pair || m.symbol === `${base}USDT` || m.symbol === base);
 
   return {
     cleanSymbol: pair,
-    binancePair: pair,
+    binancePair: targetQuote === 'USDT' ? pair : `${base}USDT`,
     tvSymbol: `BINANCE:${pair}`,
     name: known ? known.name : base,
     category: 'crypto',
