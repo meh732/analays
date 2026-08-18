@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+// Use native global fetch instead of uninstalled node-fetch
 import { POPULAR_MARKETS, fetchLiveMarketData } from "./market.js";
 import { generateAITradingAnalysis } from "./gemini.js";
 import { sendTelegramMessage, sendBaleMessage } from "./bots.js";

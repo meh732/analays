@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+// Use native global fetch instead of uninstalled node-fetch
 import { getGlobalConfig, settingsStore } from "./botSettingsStore.js";
 import { sendTelegramMessage, sendBaleMessage } from "./bots.js";
 import { fetchLiveMarketData } from "./market.js";
