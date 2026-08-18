@@ -221,8 +221,8 @@ install_platform_native_bindings() {
     fi
 
     if [ -n "$BINDING_PKG" ]; then
-        echo -e "${BLUE}📦 Ensuring native Tailwind binding (${BINDING_PKG}) is installed...${NC}"
-        npm install "${BINDING_PKG}" --save-optional --no-audit >/dev/null 2>&1 || true
+        echo -e "${BLUE}📦 Explicitly installing ${BINDING_PKG} to resolve native binding...${NC}"
+        npm install "${BINDING_PKG}@^4.1.14" --save-exact --no-audit || true
     fi
 }
 
