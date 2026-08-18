@@ -1,13 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { LiveTickerData } from "./market.js";
+import { generateOfflineTradingSetup } from "./offlineKnowledgeEngine.js";
+import { calculateTradeTiming, TradeTimingDetails, TradeTimeHorizon } from "./tradeTiming.js";
 
 let geminiClient: GoogleGenAI | null = null;
+const analysisCache = new Map<string, { timestamp: number; data: GeneratedTradeSetup }>();
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
 
-function getGemini(): GoogleGenAI {
+function getGemini(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.trim() === "" || apiKey === "dummy-key") {
+    return null;
+  }
   if (!geminiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
     geminiClient = new GoogleGenAI({
-      apiKey: apiKey || "dummy-key",
+      apiKey,
       httpOptions: {
         headers: {
           "User-Agent": "aistudio-build",
@@ -21,10 +28,12 @@ function getGemini(): GoogleGenAI {
 export interface AnalysisRequest {
   symbol: string;
   timeframe?: string;
+  timeHorizon?: TradeTimeHorizon | string;
   strategy?: string;
   actionPreference?: 'AUTO' | 'LONG' | 'SHORT';
   userNotes?: string;
   chartImageBase64?: string;
+  engineMode?: 'OFFLINE_RULES' | 'ONLINE_AI';
   riskSettings?: {
     profile?: 'conservative' | 'moderate' | 'aggressive';
     maxRiskPercent?: number;
@@ -40,6 +49,8 @@ export interface GeneratedTradeSetup {
   quoteAsset: string;
   marketCategory: 'crypto' | 'forex' | 'stocks' | 'commodities';
   timeframe: string;
+  timeHorizon?: TradeTimeHorizon | string;
+  timing?: TradeTimingDetails;
   action: 'LONG' | 'SHORT' | 'WAIT';
   grade: 'A+' | 'A' | 'B';
   confidence: number;
@@ -53,12 +64,14 @@ export interface GeneratedTradeSetup {
     sizePercent: number;
     descriptionFa: string;
     descriptionEn: string;
+    estimatedTimeFa?: string;
   }>;
   stopLoss: {
     price: number;
     lossPercent: number;
     invalidationReasonFa: string;
     invalidationReasonEn: string;
+    maxHoldingTimeFa?: string;
   };
   recommendedLeverage: string;
   leverageValue: number;
@@ -76,6 +89,9 @@ export interface GeneratedTradeSetup {
     orderBlocks?: string;
   };
   strategyUsed: string;
+  engineMode?: 'OFFLINE_RULES' | 'ONLINE_AI';
+  knowledgeBaseRulesApplied?: string[];
+  educationalNotesFa?: string;
   telegramMessage: string;
   baleMessage: string;
 }
@@ -84,20 +100,41 @@ export async function generateAITradingAnalysis(
   req: AnalysisRequest,
   marketData: LiveTickerData
 ): Promise<GeneratedTradeSetup> {
-  const ai = getGemini();
+  const engineMode = req.engineMode || 'ONLINE_AI';
+
+  // If user selected offline knowledge engine, bypass Gemini API completely
+  if (engineMode === 'OFFLINE_RULES') {
+    return generateOfflineTradingSetup(req, marketData);
+  }
+
   const timeframe = req.timeframe || "15m";
   const strategy = req.strategy || "SMC & Price Action (Smart Money Concepts)";
+  const profile = req.riskSettings?.profile || 'moderate';
+  const timing = calculateTradeTiming(req.timeHorizon, timeframe);
+
+  // Cache check for fast response and quota saving
+  const cacheKey = `${marketData.symbol}_${timeframe}_${timing.horizon}_${profile}_${req.actionPreference || 'AUTO'}_${strategy}_online`;
+  const cached = analysisCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS && !req.chartImageBase64) {
+    return cached.data;
+  }
+
+  const ai = getGemini();
+  if (!ai) {
+    const fallback = generateOfflineTradingSetup(req, marketData);
+    analysisCache.set(cacheKey, { timestamp: Date.now(), data: fallback });
+    return fallback;
+  }
 
   const systemInstruction = `
 You are the world's most elite, institutional quantitative crypto & financial markets analyst and TradingView automated bot engine for Telegram and Bale bots.
-Your objective is to provide high-winrate, mathematically sound futures trading setups (LONG / SHORT / WAIT) with precise Entry Zone, Take-Profit targets (TP1, TP2, TP3), technical Invalidation Stop-Loss, optimal leverage, and calculated risk-to-reward ratio.
+Your objective is to provide high-winrate, mathematically sound futures trading setups (LONG / SHORT / WAIT) with precise Entry Zone, Take-Profit targets (TP1, TP2, TP3), technical Invalidation Stop-Loss, optimal leverage, calculated risk-to-reward ratio, and precise entry/exit timing windows.
 
-All Persian explanations (analysisFa, descriptions, telegramMessage, baleMessage) MUST be in fluent, professional, engaging Persian (Farsi) using standard Iranian crypto trader terms (مانند ستاپ فیوچرز، اردربلاک، پولبک، مقاومت ماژور، حد سود TP، حد ضرر SL، ریسک به ریوارد، اهرم/لوریج).
+All Persian explanations (analysisFa, descriptions, telegramMessage, baleMessage) MUST be in fluent, professional, engaging Persian (Farsi) using standard Iranian crypto trader terms (مانند ستاپ فیوچرز، اردربلاک، پولبک، مقاومت ماژور، حد سود TP، حد ضرر SL، ریسک به ریوارد، اهرم/لوریج، زمانبندی خروج پله‌ای).
 
 Provide the output strictly compliant with the JSON schema.
 `;
 
-  const profile = req.riskSettings?.profile || 'moderate';
   const maxRisk = req.riskSettings?.maxRiskPercent || 2;
   const maxLev = req.riskSettings?.maxLeverage || 10;
   const minRR = req.riskSettings?.minRRRatio || 2.5;
@@ -110,6 +147,13 @@ Provide the output strictly compliant with the JSON schema.
 
   const promptContent = `
 Analyze the asset ${marketData.symbol} (${marketData.name}) on TradingView chart timeframe ${timeframe}.
+
+Target Execution Horizon: ${timing.horizonLabelEn} (${timing.horizonLabelFa})
+- Expected Holding Time: ${timing.estimatedHoldingTimeFa}
+- Entry Validity Window: ${timing.entryValidityWindowFa}
+- Estimated TP1 duration: ${timing.tp1EstimatedTimeFa}
+- Estimated TP2 duration: ${timing.tp2EstimatedTimeFa}
+- Estimated TP3 duration: ${timing.tp3EstimatedTimeFa}
 
 Live Market Context:
 - Current Price: $${marketData.price}
@@ -128,14 +172,14 @@ Live Market Context:
 - Additional Notes: ${req.userNotes || 'None'}
 
 Rules for the Trade Setup:
-1. Calculate exact numerical Entry Zone (min to max), Optimal Entry price tailored to the ${profile} risk profile.
+1. Calculate exact numerical Entry Zone (min to max), Optimal Entry price tailored to the ${profile} risk profile and timing horizon (${timing.horizonLabelFa}).
 2. For LONG: Optimal Entry ≤ Current Price, TP1 > TP2 > TP3 > Entry, SL < Entry.
 3. For SHORT: Optimal Entry ≥ Current Price, TP1 < TP2 < TP3 < Entry, SL > Entry.
 4. If market is indecisive or in chop zone without edge, mark action as 'WAIT' or set a clear limit breakout trigger.
-5. Provide 3 TP targets matching the ${profile} mode (TP1: safe lock, TP2: target resistance, TP3: runner extension).
+5. Provide 3 TP targets matching the ${profile} mode (TP1: safe lock, TP2: target resistance, TP3: runner extension). Include timing estimates in descriptions.
 6. Calculate realistic stop loss just beyond the nearest Order Block / Swing invalidation level.
 7. Recommended leverage must not exceed ${maxLev}x and fit the ${profile} mode.
-8. Format 'telegramMessage' and 'baleMessage' with emoji headers, profile tag (e.g. 🛡️ کم‌ریسک / ⚖️ متعادل / 🚀 تهاجمی), copyable prices, bold labels, tags (#${marketData.symbol.replace(/[^A-Z]/g, '')}), clear leverage guidance, and standard legal disclaimer (سلب مسئولیت: تمامی تحلیل‌ها جنبه آموزشی دارند، مسئولیت سود و زیان منحصراً با کاربر است و سازنده هیچ منفعتی از معاملات ندارد).
+8. Format 'telegramMessage' and 'baleMessage' with emoji headers, timing label (⏱️ ${timing.horizonLabelFa}), entry validity (${timing.entryValidityWindowFa}), copyable prices, bold labels, tags (#${marketData.symbol.replace(/[^A-Z]/g, '')}), clear leverage guidance, and standard legal disclaimer.
 `;
 
   try {
@@ -253,11 +297,33 @@ Rules for the Trade Setup:
       },
     });
 
-    const parsed = JSON.parse(response.text || "{}");
-    return parsed as GeneratedTradeSetup;
+    const parsed = JSON.parse(response.text || "{}") as GeneratedTradeSetup;
+    parsed.engineMode = 'ONLINE_AI';
+    parsed.timeHorizon = timing.horizon;
+    parsed.timing = timing;
+
+    // Ensure takeProfits have estimated times
+    if (parsed.takeProfits && parsed.takeProfits.length >= 3) {
+      parsed.takeProfits[0].estimatedTimeFa = timing.tp1EstimatedTimeFa;
+      parsed.takeProfits[1].estimatedTimeFa = timing.tp2EstimatedTimeFa;
+      parsed.takeProfits[2].estimatedTimeFa = timing.tp3EstimatedTimeFa;
+    }
+    if (parsed.stopLoss) {
+      parsed.stopLoss.maxHoldingTimeFa = timing.estimatedHoldingTimeFa;
+    }
+
+    analysisCache.set(cacheKey, { timestamp: Date.now(), data: parsed });
+    return parsed;
   } catch (err: any) {
-    console.error("Gemini Analysis Error, creating algorithmic fallback setup:", err);
-    return createAlgorithmicFallback(req, marketData, timeframe);
+    const isRateLimit = err?.status === 429 || err?.message?.includes("429") || err?.message?.includes("quota") || err?.message?.includes("RESOURCE_EXHAUSTED");
+    if (isRateLimit) {
+      console.warn(`[AI Engine] Rate-limit (429) hit for ${marketData.symbol}. Providing high-precision quantitative offline SMC setup.`);
+    } else {
+      console.warn(`[AI Engine] Fallback activated for ${marketData.symbol}: ${err?.message || err}`);
+    }
+    const fallback = generateOfflineTradingSetup(req, marketData);
+    analysisCache.set(cacheKey, { timestamp: Date.now(), data: fallback });
+    return fallback;
   }
 }
 

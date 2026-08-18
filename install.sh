@@ -195,6 +195,74 @@ EOF
     echo -e "${WHITE}  - Bale Chat ID: ${BALE_CHAT_ID:-'(Not configured)'}${NC}"
 }
 
+# Detect and install appropriate native bindings for Tailwind CSS / Oxide
+install_platform_native_bindings() {
+    ARCH=$(uname -m)
+    LIBC="gnu"
+    if ldd --version 2>&1 | grep -iq musl || [ -f /etc/alpine-release ]; then
+        LIBC="musl"
+    fi
+
+    echo -e "${BLUE}🔍 Detected Platform: Linux (${ARCH}, ${LIBC})${NC}"
+
+    BINDING_PKG=""
+    if [ "$ARCH" = "x86_64" ]; then
+        if [ "$LIBC" = "musl" ]; then
+            BINDING_PKG="@tailwindcss/oxide-linux-x64-musl"
+        else
+            BINDING_PKG="@tailwindcss/oxide-linux-x64-gnu"
+        fi
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        if [ "$LIBC" = "musl" ]; then
+            BINDING_PKG="@tailwindcss/oxide-linux-arm64-musl"
+        else
+            BINDING_PKG="@tailwindcss/oxide-linux-arm64-gnu"
+        fi
+    fi
+
+    if [ -n "$BINDING_PKG" ]; then
+        echo -e "${BLUE}📦 Ensuring native Tailwind binding (${BINDING_PKG}) is installed...${NC}"
+        npm install "${BINDING_PKG}" --save-optional --no-audit >/dev/null 2>&1 || true
+    fi
+}
+
+# Robust production build handler with automated self-healing
+build_production_bundle() {
+    echo -e "\n${BLUE}🏗️ Compiling and building production bundle...${NC}"
+    install_platform_native_bindings
+
+    if npm run build; then
+        echo -e "${GREEN}✅ Production bundle built successfully.${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}⚠️ Notice: Initial build failed. Attempting automated recovery...${NC}"
+
+    # Recovery 1: Re-install optional native bindings and force install
+    install_platform_native_bindings
+    npm install --include=optional --force
+
+    if npm run build; then
+        echo -e "${GREEN}✅ Production bundle built successfully after recovery.${NC}"
+        return 0
+    fi
+
+    # Recovery 2: Clean node_modules & cache
+    echo -e "${YELLOW}⚠️ Performing deep clean and reinstall...${NC}"
+    rm -rf node_modules package-lock.json
+    npm cache clean --force 2>/dev/null || true
+    npm install --include=optional --force
+    install_platform_native_bindings
+
+    if npm run build; then
+        echo -e "${GREEN}✅ Production bundle built successfully after deep recovery.${NC}"
+        return 0
+    else
+        echo -e "${RED}❌ Error: Production build failed. Please ensure Node.js 18+ and build-essential are available.${NC}"
+        exit 1
+    fi
+}
+
 # Create and configure systemd service
 setup_systemd_service() {
     TARGET_PORT="${PORT:-3000}"
@@ -278,12 +346,11 @@ action_install() {
     run_elevated chmod +x "${PROJECT_DIR}/install.sh" 2>/dev/null || true
 
     echo -e "\n${BLUE}📦 Installing npm dependencies in ${PROJECT_DIR}...${NC}"
-    npm install
+    npm install --include=optional || npm install --force
 
     configure_environment
 
-    echo -e "\n${BLUE}🏗️ Compiling and building production bundle...${NC}"
-    npm run build
+    build_production_bundle
 
     setup_systemd_service
     configure_firewall
@@ -335,15 +402,19 @@ action_update() {
     fi
 
     echo -e "\n${BLUE}📦 STEP 3: Updating npm dependencies...${NC}"
-    npm install
+    npm install --include=optional || npm install --force
 
     echo -e "\n${BLUE}🏗️ STEP 4: Rebuilding production bundle...${NC}"
-    npm run build
+    build_production_bundle
 
     echo -e "\n${BLUE}🔄 STEP 5: Restarting systemd service...${NC}"
-    run_elevated systemctl restart "${SERVICE_NAME}"
+    if [ ! -f "${SERVICE_FILE}" ]; then
+        setup_systemd_service
+    else
+        run_elevated systemctl restart "${SERVICE_NAME}"
+    fi
 
-    echo -e "\n${GREEN}✅ Update completed successfully! Service has been restarted.${NC}"
+    echo -e "\n${GREEN}✅ Update completed successfully! Service is active and running.${NC}"
     echo -e "${WHITE}A full backup archive was dispatched to the Admin Telegram chat.${NC}"
 }
 
@@ -473,6 +544,11 @@ action_schedule_backup() {
 # Action 7: Status & Logs
 action_status_logs() {
     echo -e "${BLUE}📊 Service Status:${NC}"
+    if [ ! -f "${SERVICE_FILE}" ]; then
+        echo -e "${YELLOW}⚠️ Service file ${SERVICE_FILE} is not yet installed.${NC}"
+        echo -e "${WHITE}Please run option [1] (Full Install & Service Setup) to initialize the service.${NC}"
+        return
+    fi
     run_elevated systemctl status "${SERVICE_NAME}" --no-pager || true
     echo -e "\n${YELLOW}Press [Ctrl+C] to exit live logs.${NC}"
     read -r -p "Would you like to view live streaming logs? (y/N): " VIEW_LOGS
@@ -484,6 +560,11 @@ action_status_logs() {
 # Action 8: Restart
 action_restart() {
     echo -e "${BLUE}🔄 Restarting ${SERVICE_NAME}...${NC}"
+    if [ ! -f "${SERVICE_FILE}" ]; then
+        echo -e "${YELLOW}⚠️ Service file ${SERVICE_FILE} not found. Creating and configuring service now...${NC}"
+        setup_systemd_service
+        return
+    fi
     run_elevated systemctl restart "${SERVICE_NAME}"
     echo -e "${GREEN}✅ Service restarted successfully.${NC}"
 }

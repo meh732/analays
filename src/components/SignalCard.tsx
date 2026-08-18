@@ -18,6 +18,14 @@ import {
   Activity,
   Compass,
   Scale,
+  BookOpen,
+  Brain,
+  RefreshCw,
+  CheckCircle2,
+  Clock,
+  Timer,
+  Hourglass,
+  Calendar,
 } from 'lucide-react';
 
 interface SignalCardProps {
@@ -27,6 +35,7 @@ interface SignalCardProps {
   onOpenCalculator?: (setup: TradeSetup) => void;
   onSaveToJournal?: (setup: TradeSetup) => void;
   onOpenLegal?: () => void;
+  onReAnalyzeWithMode?: (mode: 'OFFLINE_RULES' | 'ONLINE_AI') => void;
 }
 
 export const SignalCard: React.FC<SignalCardProps> = ({
@@ -36,14 +45,17 @@ export const SignalCard: React.FC<SignalCardProps> = ({
   onOpenCalculator,
   onSaveToJournal,
   onOpenLegal,
+  onReAnalyzeWithMode,
 }) => {
   const [copied, setCopied] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(true);
-  const [activeTab, setActiveTab] = useState<'fa' | 'en' | 'raw'>('fa');
+  const [showEducationalDetails, setShowEducationalDetails] = useState(true);
+  const [activeTab, setActiveTab] = useState<'fa' | 'en' | 'raw' | 'edu'>('fa');
 
   const isLong = setup.action === 'LONG';
   const isShort = setup.action === 'SHORT';
   const isWait = setup.action === 'WAIT';
+  const isOffline = setup.engineMode === 'OFFLINE_RULES';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(setup.telegramMessage || setup.baleMessage);
@@ -71,7 +83,7 @@ export const SignalCard: React.FC<SignalCardProps> = ({
 
       {/* Header Info */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div
             className={`px-3.5 py-1.5 rounded-xl border font-bold text-sm flex items-center gap-2 shadow-inner ${actionBg}`}
           >
@@ -91,10 +103,34 @@ export const SignalCard: React.FC<SignalCardProps> = ({
               {setup.timeframe}
             </span>
           </div>
+
+          {/* Engine Mode Badge */}
+          {isOffline ? (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold shadow-sm">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>📚 موتور دانش آفلاین (SMC Rules)</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-bold shadow-sm">
+              <Brain className="w-3.5 h-3.5" />
+              <span>🧠 هوش مصنوعی آنلاین (Gemini AI)</span>
+            </div>
+          )}
         </div>
 
-        {/* Grade & Confidence Badge */}
+        {/* Grade & Confidence Badge + Re-Analyze Switch */}
         <div className="flex items-center gap-2">
+          {onReAnalyzeWithMode && (
+            <button
+              onClick={() => onReAnalyzeWithMode(isOffline ? 'ONLINE_AI' : 'OFFLINE_RULES')}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all active:scale-95"
+              title={isOffline ? 'تغییر به تحلیل هوش مصنوعی آنلاین' : 'تغییر به تحلیل دانش و استراتژی آفلاین'}
+            >
+              <RefreshCw className="w-3 h-3 text-amber-400" />
+              <span>{isOffline ? 'تحلیل با هوش مصنوعی' : 'تحلیل با دانش آفلاین'}</span>
+            </button>
+          )}
+
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
             <Award className="w-3.5 h-3.5" />
             <span>گرید {setup.grade}</span>
@@ -104,6 +140,60 @@ export const SignalCard: React.FC<SignalCardProps> = ({
             <Sparkles className="w-3.5 h-3.5" />
             <span className="mono-num">{setup.confidence}% ضریب اطمینان</span>
           </div>
+        </div>
+      </div>
+
+      {/* Trade Timing & Execution Horizon Banner */}
+      <div className="bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-purple-950/40 border border-indigo-800/40 rounded-xl p-3.5 my-3 shadow-inner">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Horizon */}
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-slate-400 text-[11px] block">افق زمانی ورود و خروج:</span>
+              <span className="text-slate-100 font-bold">
+                {setup.timing?.horizonLabelFa || (setup.timeframe === '1m' || setup.timeframe === '5m' || setup.timeframe === '15m' ? '⚡ اسکلپ سریع (۵ الی ۳۰ دقیقه)' : setup.timeframe === '1h' || setup.timeframe === '4h' ? '⏱️ درون‌روز (۱ الی ۴ ساعت)' : '📅 سوینگ چندروزه (۱ الی ۳ روز)')}
+              </span>
+            </div>
+          </div>
+
+          {/* Entry Window */}
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-300 shrink-0">
+              <Timer className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-slate-400 text-[11px] block">اعتبار محدوده ورود:</span>
+              <span className="text-blue-300 font-semibold">
+                {setup.timing?.entryValidityWindowFa || 'معتبر تا ۳۰ الی ۶۰ دقیقه آینده'}
+              </span>
+            </div>
+          </div>
+
+          {/* Holding Duration */}
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300 shrink-0">
+              <Hourglass className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-slate-400 text-[11px] block">مدت تخمینی نگهداری:</span>
+              <span className="text-emerald-300 font-semibold">
+                {setup.timing?.estimatedHoldingTimeFa || '۱۵ الی ۴۵ دقیقه'}
+              </span>
+            </div>
+          </div>
+
+          {/* Invalidation Timeout */}
+          {setup.timing?.invalidationTimeoutFa && (
+            <div className="w-full text-[11px] text-slate-400 pt-2 border-t border-indigo-900/40 flex items-center justify-between">
+              <span className="text-amber-400/90 flex items-center gap-1">
+                <span>⚠️ شرط انقضای زمانی:</span>
+                <span>{setup.timing.invalidationTimeoutFa}</span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -127,21 +217,30 @@ export const SignalCard: React.FC<SignalCardProps> = ({
           </div>
         </div>
 
-        {/* Take Profit 1 & 2 */}
+        {/* Take Profit Targets with Estimated Times */}
         <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5">
           <div className="flex items-center justify-between text-xs text-emerald-400 mb-1">
             <span className="flex items-center gap-1">
               <Target className="w-3.5 h-3.5" />
               تارگت‌های سود (TPs)
             </span>
-            <span className="text-[10px] text-slate-400">۳ مرحله خروج</span>
+            <span className="text-[10px] text-slate-400">۳ پله خروج</span>
           </div>
-          <div className="space-y-1 text-xs">
+          <div className="space-y-1.5 text-xs">
             {setup.takeProfits.map((tp) => (
               <div key={tp.target} className="flex items-center justify-between">
-                <span className="text-slate-400 text-[11px]">TP{tp.target}:</span>
-                <span className="mono-num font-bold text-emerald-300">${tp.price.toLocaleString()}</span>
-                <span className="mono-num text-[11px] text-emerald-400 font-medium">+{tp.pnlPercent}%</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400 text-[11px]">TP{tp.target}:</span>
+                  <span className="mono-num font-bold text-emerald-300">${tp.price.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {tp.estimatedTimeFa && (
+                    <span className="text-[10px] text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded">
+                      ~{tp.estimatedTimeFa}
+                    </span>
+                  )}
+                  <span className="mono-num text-[11px] text-emerald-400 font-medium">+{tp.pnlPercent}%</span>
+                </div>
               </div>
             ))}
           </div>
@@ -184,6 +283,24 @@ export const SignalCard: React.FC<SignalCardProps> = ({
         </div>
       </div>
 
+      {/* Applied Knowledge Rules (if offline engine) */}
+      {setup.knowledgeBaseRulesApplied && setup.knowledgeBaseRulesApplied.length > 0 && (
+        <div className="bg-cyan-950/30 border border-cyan-800/50 rounded-xl p-3.5 my-3">
+          <div className="flex items-center gap-2 mb-2 text-xs font-bold text-cyan-300">
+            <BookOpen className="w-4 h-4 text-cyan-400" />
+            <span>قوانین و همپوشانی‌های تایید شده در دانشنامه معاملاتی:</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {setup.knowledgeBaseRulesApplied.map((rule, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">{rule}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Persian AI Analysis Commentary */}
       <div className="bg-slate-950/50 border border-slate-800/60 rounded-xl p-4 my-3">
         <div className="flex items-center justify-between mb-2">
@@ -200,6 +317,16 @@ export const SignalCard: React.FC<SignalCardProps> = ({
             >
               تحلیل فارسی
             </button>
+            {setup.educationalNotesFa && (
+              <button
+                onClick={() => setActiveTab('edu')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  activeTab === 'edu' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📚 آموزش ستاپ
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('en')}
               className={`px-2.5 py-1 rounded-md transition-all ${
@@ -223,6 +350,12 @@ export const SignalCard: React.FC<SignalCardProps> = ({
           <p className="text-xs md:text-sm text-slate-300 leading-relaxed text-justify">
             {setup.analysisFa}
           </p>
+        )}
+
+        {activeTab === 'edu' && (
+          <div className="text-xs md:text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-slate-900/80 p-3 rounded-lg border border-cyan-900/40">
+            {setup.educationalNotesFa}
+          </div>
         )}
 
         {activeTab === 'en' && (

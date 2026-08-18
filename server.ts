@@ -61,7 +61,7 @@ async function startServer() {
   // AI Analysis & Futures Setup Generator
   app.post("/api/analyze", async (req, res) => {
     try {
-      const { symbol, timeframe, strategy, actionPreference, userNotes, chartImageBase64, riskSettings } = req.body;
+      const { symbol, timeframe, strategy, actionPreference, userNotes, chartImageBase64, riskSettings, engineMode } = req.body;
       if (!symbol) {
         return res.status(400).json({ error: "Symbol is required" });
       }
@@ -71,11 +71,12 @@ async function startServer() {
         {
           symbol,
           timeframe: timeframe || "15m",
-          strategy: strategy || "SMC & Price Action (Smart Money Concepts)",
+          strategy: strategy || (engineMode === "OFFLINE_RULES" ? "SMC & Offline Knowledge Base" : "SMC & Price Action (Smart Money Concepts)"),
           actionPreference: actionPreference || "AUTO",
           userNotes,
           chartImageBase64,
           riskSettings,
+          engineMode: engineMode || "ONLINE_AI",
         },
         marketData
       );
@@ -99,7 +100,7 @@ async function startServer() {
   // Scanner endpoint: Scan multiple markets for high-probability setups
   app.post("/api/scanner", async (req, res) => {
     try {
-      const { categories, timeframe, riskSettings } = req.body;
+      const { categories, timeframe, riskSettings, engineMode } = req.body;
       const targetMarkets = POPULAR_MARKETS.filter((m) =>
         !categories || categories.length === 0 || categories.includes(m.category)
       ).slice(0, 6);
@@ -111,9 +112,10 @@ async function startServer() {
             {
               symbol: m.symbol,
               timeframe: timeframe || "15m",
-              strategy: "TradingView Scanner",
+              strategy: engineMode === "OFFLINE_RULES" ? "Offline Quantitative Scanner" : "TradingView Scanner",
               actionPreference: "AUTO",
               riskSettings,
+              engineMode: engineMode || "ONLINE_AI",
             },
             marketData
           );
@@ -136,7 +138,7 @@ async function startServer() {
   // Auto-Hunter endpoint: Analyze watchlist symbols and optionally auto-broadcast high-grade signals
   app.post("/api/auto-hunter/scan", async (req, res) => {
     try {
-      const { watchlist, timeframe, riskSettings, autoBroadcast, telegramToken, telegramChatId, baleToken, baleChatId } = req.body;
+      const { watchlist, timeframe, riskSettings, autoBroadcast, telegramToken, telegramChatId, baleToken, baleChatId, engineMode } = req.body;
       const symbolsToScan = Array.isArray(watchlist) && watchlist.length > 0
         ? watchlist
         : ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XAUUSD", "NVDA", "DOGEUSDT"];
@@ -149,9 +151,10 @@ async function startServer() {
               {
                 symbol: sym,
                 timeframe: timeframe || "15m",
-                strategy: "Auto-Pilot Hunter Engine",
+                strategy: engineMode === "OFFLINE_RULES" ? "Auto-Pilot Offline Knowledge Engine" : "Auto-Pilot Hunter Engine",
                 actionPreference: "AUTO",
                 riskSettings,
+                engineMode: engineMode || "ONLINE_AI",
               },
               marketData
             );
@@ -450,9 +453,9 @@ async function startServer() {
 
       const mainReplyMenu = [
         [{ text: "📊 تحلیل فوری ارزها" }, { text: "🎯 اسکنر هوشمند بازار" }],
+        [{ text: "🧠 تحلیل هوش مصنوعی" }, { text: "📚 دانش و استراتژی آفلاین" }],
         [{ text: "⚙️ تنظیمات ریسک و سود" }, { text: "🧮 محاسبه حجم و مارجین" }],
-        [{ text: "🔔 ستاپ‌های خودکار شکار شده" }, { text: "💎 ژورنال و وین‌ریت" }],
-        [{ text: "⚖️ قوانین و سلب مسئولیت حقوقی" }],
+        [{ text: "🔔 ستاپ‌های خودکار شکار شده" }, { text: "⚖️ قوانین و سلب مسئولیت حقوقی" }],
       ];
 
       // Legal Disclaimer Message
@@ -494,18 +497,45 @@ async function startServer() {
           const parts = data.replace("/analyze", "").trim().split(" ");
           const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
           const timeframe = parts[1] || "15m";
+          const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
+          const timeHorizon = (parts[3] || (timeframe === "1m" || timeframe === "5m" || timeframe === "15m" ? "scalp_minutes" : timeframe === "1h" || timeframe === "4h" ? "intraday_hours" : "swing_days")) as any;
           const marketData = await fetchLiveMarketData(symbol);
-          const setup = await generateAITradingAnalysis({ symbol, timeframe }, marketData);
+          const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode, timeHorizon }, marketData);
           await sendTelegramMessage(token, chatId.toString(), setup.telegramMessage, {
             inlineKeyboard: [
               [
-                { text: `🔄 تحلیل مجدد ${symbol}`, callback_data: `/analyze ${symbol} ${timeframe}` },
-                { text: "🧮 محاسبه حجم", callback_data: `/calc ${symbol}` },
+                { text: `⚡ ستاپ اسکلپ (دقیقه‌ای)`, callback_data: `/analyze ${symbol} 15m ${engineMode} scalp_minutes` },
+                { text: `⏱️ ستاپ درون‌روز (ساعتی)`, callback_data: `/analyze ${symbol} 1h ${engineMode} intraday_hours` },
+                { text: `📅 ستاپ سوینگ (روزانه)`, callback_data: `/analyze ${symbol} 4h ${engineMode} swing_days` },
               ],
               [
-                { text: "⚙️ تنظیمات ریسک", callback_data: "/settings_risk" },
+                { text: `🧠 بررسی با هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI ${timeHorizon}` },
+                { text: `📚 دانش آفلاین (SMC)`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES ${timeHorizon}` },
+              ],
+              [
+                { text: "🧮 محاسبه حجم", callback_data: `/calc ${symbol}` },
                 { text: "🎯 اسکنر بازار", callback_data: "/scanner" },
               ],
+              [
+                { text: "⏱️ تنظیم افق زمانی", callback_data: "/settings_timing" },
+                { text: "🔙 منوی اصلی", callback_data: "/main_menu" },
+              ],
+            ],
+            replyKeyboard: mainReplyMenu,
+          });
+        } else if (data === "/settings_timing") {
+          const timingMsg = `⏱️ **تنظیم افق زمانی و سرعت نقطه ورود و خروج** ⏱️\n\nافق زمانی مورد نظر خود را برای سیگنال‌دهی انتخاب کنید:\n\n⚡ **۱. اسکلپ سریع (Scalp):**\n• تارگت‌های ۵ تا ۳۰ دقیقه‌ای\n• اهرم بالاتر (15x-30x) و ورودهای سریع فیوچرز\n\n⏱️ **۲. معاملات درون‌روز (Intraday):**\n• تارگت‌های ۱ تا ۴ ساعته\n• مناسب برای نوسان‌گیری روزانه استاندارد\n\n📅 **۳. معاملات سوینگ (Swing):**\n• تارگت‌های ۱ تا ۳ روزه\n• اهرم پایین‌تر و اهداف قیمتی گسترده‌تر\n\n🗓️ **۴. معاملات پوزیشن (Position):**\n• تارگت‌های ۱ تا ۲ هفته‌ای`;
+          await sendTelegramMessage(token, chatId.toString(), timingMsg, {
+            inlineKeyboard: [
+              [
+                { text: "⚡ اسکلپ BTC (دقیقه‌ای)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI scalp_minutes" },
+                { text: "⏱️ درون‌روز BTC (ساعتی)", callback_data: "/analyze BTCUSDT 1h ONLINE_AI intraday_hours" },
+              ],
+              [
+                { text: "📅 سوینگ BTC (روزانه)", callback_data: "/analyze BTCUSDT 4h ONLINE_AI swing_days" },
+                { text: "🗓️ پوزیشن BTC (هفتگی)", callback_data: "/analyze BTCUSDT 1D ONLINE_AI position_weeks" },
+              ],
+              [{ text: "🔙 بازگشت به منوی اصلی", callback_data: "/main_menu" }],
             ],
             replyKeyboard: mainReplyMenu,
           });
@@ -545,21 +575,22 @@ async function startServer() {
       const text = message.text.trim();
 
       if (text === "/start" || text === "شروع" || text === "/main_menu") {
-        const welcome = `👋 **سلام! به بات تریدینگ‌ویو، تحلیل تکنیکال و سیگنال‌های فیوچرز خوش آمدید.**
+        const welcome = `👋 **سلام! به بات تریدینگ‌ویو، تحلیل تکنیکال و سیگنال‌های دوگانه (هوش مصنوعی + دانش آفلاین) خوش آمدید.**
 
-تمام امکانات پنل به صورت **دکمه‌های شیشه‌ای** و **منوی زیر چت** در دسترس شماست:
-▫️ دریافت نقاط ورود بهینه، تارگت‌های TP1, TP2, TP3 و استاپ‌لاس
-▫️ اسکن خودکار واچ‌لیست ارزها و سهام‌ها
-▫️ تنظیم پروفایل سوددهی و ریسک (کم‌ریسک، متعادل، تهاجمی)
-▫️ محاسبه‌گر مارجین و حجم پوزیشن
+سیستم دارای دو موتور تولید ستاپ معاملاتی است:
+🧠 **۱. هوش مصنوعی آنلاین:** تحلیل بلادرنگ و مولتی‌مدال پرایس اکشن
+📚 **۲. دانش و استراتژی آفلاین:** الگوریتم قوانین ثابت اسمارت‌مانی (SMC)، اردربلاک، هانت نقدینگی و فیبوناچی
 
-برای شروع روی دکمه‌های زیر کلیک کنید:`;
+امکانات پنل به صورت **دکمه‌های شیشه‌ای** و **منوی زیر چت** در دسترس است:`;
 
         const glassButtons = [
           [
-            { text: "📊 تحلیل BTC", callback_data: "/analyze BTCUSDT 15m" },
-            { text: "📊 تحلیل ETH", callback_data: "/analyze ETHUSDT 15m" },
-            { text: "📊 تحلیل SOL", callback_data: "/analyze SOLUSDT 15m" },
+            { text: "🧠 تحلیل زنده BTC (هوش مصنوعی)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" },
+            { text: "📚 ستاپ BTC (دانش آفلاین SMC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" },
+          ],
+          [
+            { text: "🧠 تحلیل ETH", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" },
+            { text: "🧠 تحلیل SOL", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" },
           ],
           [
             { text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" },
@@ -573,6 +604,22 @@ async function startServer() {
 
         await sendTelegramMessage(token, chatId.toString(), welcome, {
           inlineKeyboard: glassButtons,
+          replyKeyboard: mainReplyMenu,
+        });
+      } else if (text === "🧠 تحلیل هوش مصنوعی") {
+        await sendTelegramMessage(token, chatId.toString(), "🧠 **تحلیل با هوش مصنوعی آنلاین (Gemini AI):**\nیک دارایی را انتخاب کنید:", {
+          inlineKeyboard: [
+            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" }],
+            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" }, { text: "👑 انس طلا (XAU)", callback_data: "/analyze XAUUSD 1h ONLINE_AI" }],
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+      } else if (text === "📚 دانش و استراتژی آفلاین") {
+        await sendTelegramMessage(token, chatId.toString(), "📚 **تحلیل با متدولوژی و دانش آفلاین (Smart Money Concepts & Rules):**\nدارایی مورد نظر را انتخاب کنید:", {
+          inlineKeyboard: [
+            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m OFFLINE_RULES" }],
+            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m OFFLINE_RULES" }, { text: "👑 انس طلا (XAU)", callback_data: "/analyze XAUUSD 1h OFFLINE_RULES" }],
+          ],
           replyKeyboard: mainReplyMenu,
         });
       } else if (text === "📊 تحلیل فوری ارزها") {
@@ -638,21 +685,22 @@ async function startServer() {
           replyKeyboard: mainReplyMenu,
         });
       } else {
-        // Extract symbol
+        // Extract symbol and mode
         const parts = text.replace("/analyze", "").replace("/futures", "").trim().split(" ");
         const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
         const timeframe = parts[1] || "15m";
+        const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
 
         const marketData = await fetchLiveMarketData(symbol);
-        const setup = await generateAITradingAnalysis({ symbol, timeframe }, marketData);
+        const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode }, marketData);
         await sendTelegramMessage(token, chatId.toString(), setup.telegramMessage, {
           inlineKeyboard: [
             [
-              { text: `🔄 تحلیل مجدد ${symbol}`, callback_data: `/analyze ${symbol} ${timeframe}` },
-              { text: "🧮 محاسبه حجم", callback_data: `/calc ${symbol}` },
+              { text: `🧠 بررسی با هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI` },
+              { text: `📚 بررسی با دانش آفلاین (SMC)`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES` },
             ],
             [
-              { text: "⚙️ تغییر ریسک", callback_data: "/settings_risk" },
+              { text: "🧮 محاسبه حجم", callback_data: `/calc ${symbol}` },
               { text: "🎯 اسکنر بازار", callback_data: "/scanner" },
             ],
           ],
@@ -676,8 +724,8 @@ async function startServer() {
 
       const mainReplyMenu = [
         [{ text: "📊 تحلیل فوری ارزها" }, { text: "🎯 اسکنر هوشمند بازار" }],
+        [{ text: "🧠 تحلیل هوش مصنوعی" }, { text: "📚 دانش و استراتژی آفلاین" }],
         [{ text: "⚙️ تنظیمات ریسک و سود" }, { text: "🧮 محاسبه حجم و مارجین" }],
-        [{ text: "🔔 ستاپ‌های خودکار شکار شده" }, { text: "💎 ژورنال و وین‌ریت" }],
         [{ text: "⚖️ قوانین و سلب مسئولیت حقوقی" }],
       ];
 
@@ -711,11 +759,22 @@ async function startServer() {
         if (data.startsWith("/analyze")) {
           const parts = data.replace("/analyze", "").trim().split(" ");
           const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
+          const timeframe = parts[1] || "15m";
+          const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
+          const timeHorizon = (parts[3] || (timeframe === "1m" || timeframe === "5m" || timeframe === "15m" ? "scalp_minutes" : timeframe === "1h" || timeframe === "4h" ? "intraday_hours" : "swing_days")) as any;
           const marketData = await fetchLiveMarketData(symbol);
-          const setup = await generateAITradingAnalysis({ symbol, timeframe: "15m" }, marketData);
+          const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode, timeHorizon }, marketData);
           await sendBaleMessage(token, chatId.toString(), setup.baleMessage, {
             inlineKeyboard: [
-              [{ text: `📊 تحلیل مجدد ${symbol}`, callback_data: `/analyze ${symbol}` }],
+              [
+                { text: `⚡ اسکلپ (دقیقه‌ای)`, callback_data: `/analyze ${symbol} 15m ${engineMode} scalp_minutes` },
+                { text: `⏱️ درون‌روز (ساعتی)`, callback_data: `/analyze ${symbol} 1h ${engineMode} intraday_hours` },
+                { text: `📅 سوینگ (روزانه)`, callback_data: `/analyze ${symbol} 4h ${engineMode} swing_days` },
+              ],
+              [
+                { text: `🧠 بررسی هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI ${timeHorizon}` },
+                { text: `📚 دانش و استراتژی آفلاین`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES ${timeHorizon}` },
+              ],
               [{ text: "🎯 اسکنر بازار", callback_data: "/scanner" }],
             ],
             replyKeyboard: mainReplyMenu,
@@ -730,12 +789,29 @@ async function startServer() {
       const text = message.text.trim();
 
       if (text === "/start" || text === "شروع") {
-        const welcome = `👋 سلام به ربات هوشمند تریدینگ‌ویو و فیوچرز (بله) خوش آمدید!\n\nتمام ابزارهای پنل از طریق دکمه‌های زیر و منوی کیبورد در دسترس هستند:`;
+        const welcome = `👋 سلام به ربات هوشمند تریدینگ‌ویو (بله) با دو موتور تحلیلی آنلاین و آفلاین خوش آمدید!\n\n🧠 ۱. هوش مصنوعی آنلاین (Gemini AI)\n📚 ۲. دانش و استراتژی آفلاین (SMC Rules)\n\nگزینه مورد نظر را انتخاب کنید:`;
         await sendBaleMessage(token, chatId.toString(), welcome, {
           inlineKeyboard: [
-            [{ text: "📊 تحلیل بیتکوین", callback_data: "/analyze BTCUSDT" }, { text: "📊 تحلیل اتریوم", callback_data: "/analyze ETHUSDT" }],
+            [{ text: "🧠 تحلیل هوش مصنوعی بیتکوین", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" }],
+            [{ text: "📚 ستاپ آفلاین اسمارت‌مانی BTC", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" }],
             [{ text: "🎯 اسکنر هوشمند بازار", callback_data: "/scanner" }, { text: "⚙️ تنظیمات ریسک", callback_data: "/settings_risk" }],
             [{ text: "⚖️ قوانین و سلب مسئولیت", callback_data: "/rules" }],
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+      } else if (text === "🧠 تحلیل هوش مصنوعی") {
+        await sendBaleMessage(token, chatId.toString(), "🧠 یک دارایی را برای تحلیل هوش مصنوعی انتخاب کنید:", {
+          inlineKeyboard: [
+            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m ONLINE_AI" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m ONLINE_AI" }],
+            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m ONLINE_AI" }],
+          ],
+          replyKeyboard: mainReplyMenu,
+        });
+      } else if (text === "📚 دانش و استراتژی آفلاین") {
+        await sendBaleMessage(token, chatId.toString(), "📚 یک دارایی را برای بررسی با استراتژی و دانش آفلاین SMC انتخاب کنید:", {
+          inlineKeyboard: [
+            [{ text: "🟡 بیتکوین (BTC)", callback_data: "/analyze BTCUSDT 15m OFFLINE_RULES" }, { text: "🔷 اتریوم (ETH)", callback_data: "/analyze ETHUSDT 15m OFFLINE_RULES" }],
+            [{ text: "🟣 سولانا (SOL)", callback_data: "/analyze SOLUSDT 15m OFFLINE_RULES" }],
           ],
           replyKeyboard: mainReplyMenu,
         });
@@ -762,11 +838,16 @@ async function startServer() {
       } else {
         const parts = text.replace("/analyze", "").replace("/futures", "").trim().split(" ");
         const symbol = parts[0]?.toUpperCase() || "BTCUSDT";
+        const timeframe = parts[1] || "15m";
+        const engineMode = (parts[2] === "OFFLINE_RULES" || parts[2] === "offline") ? "OFFLINE_RULES" : "ONLINE_AI";
         const marketData = await fetchLiveMarketData(symbol);
-        const setup = await generateAITradingAnalysis({ symbol, timeframe: "15m" }, marketData);
+        const setup = await generateAITradingAnalysis({ symbol, timeframe, engineMode }, marketData);
         await sendBaleMessage(token, chatId.toString(), setup.baleMessage, {
           inlineKeyboard: [
-            [{ text: `📊 تحلیل مجدد ${symbol}`, callback_data: `/analyze ${symbol}` }],
+            [
+              { text: `🧠 بررسی هوش مصنوعی`, callback_data: `/analyze ${symbol} ${timeframe} ONLINE_AI` },
+              { text: `📚 دانش آفلاین SMC`, callback_data: `/analyze ${symbol} ${timeframe} OFFLINE_RULES` },
+            ],
             [{ text: "🎯 اسکنر بازار", callback_data: "/scanner" }],
           ],
           replyKeyboard: mainReplyMenu,

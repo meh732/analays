@@ -10,6 +10,23 @@ export type BotPlatform = 'telegram' | 'bale' | 'both';
 
 export type RiskProfileMode = 'conservative' | 'moderate' | 'aggressive';
 
+export type SignalEngineMode = 'OFFLINE_RULES' | 'ONLINE_AI';
+
+export type TradeTimeHorizon = 'scalp_minutes' | 'intraday_hours' | 'swing_days' | 'position_weeks';
+
+export interface TradeTimingDetails {
+  horizon: TradeTimeHorizon;
+  horizonLabelFa: string; // e.g. "اسکلپ سریع (۵ تا ۳۰ دقیقه)"
+  horizonLabelEn: string; // e.g. "Fast Scalp (5 to 30 mins)"
+  entryValidityWindowFa: string; // e.g. "معتبر برای ورود تا ۳۰ دقیقه آینده"
+  estimatedHoldingTimeFa: string; // e.g. "۱۵ الی ۴۵ دقیقه"
+  estimatedHoldingTimeEn: string;
+  tp1EstimatedTimeFa: string; // e.g. "۱۰ الی ۲۰ دقیقه"
+  tp2EstimatedTimeFa: string; // e.g. "۲۵ الی ۴۵ دقیقه"
+  tp3EstimatedTimeFa: string; // e.g. "۴۵ الی ۹۰ دقیقه"
+  invalidationTimeoutFa: string; // e.g. "در صورت عدم لمس نقطه ورود تا ۱ ساعت آینده، ستاپ منقضی است"
+}
+
 export interface RiskSettings {
   profile: RiskProfileMode; // کم‌ریسک، متعادل، تهاجمی
   maxRiskPercent: number; // مثلا ۱٪ تا ۵٪
@@ -34,6 +51,7 @@ export interface TakeProfitTarget {
   sizePercent: number;
   descriptionFa: string;
   descriptionEn: string;
+  estimatedTimeFa?: string;
 }
 
 export interface StopLossConfig {
@@ -41,6 +59,7 @@ export interface StopLossConfig {
   lossPercent: number;
   invalidationReasonFa: string;
   invalidationReasonEn: string;
+  maxHoldingTimeFa?: string;
 }
 
 export interface TradeSetup {
@@ -50,6 +69,8 @@ export interface TradeSetup {
   quoteAsset: string;
   marketCategory: MarketCategory;
   timeframe: Timeframe;
+  timeHorizon?: TradeTimeHorizon;
+  timing?: TradeTimingDetails;
   action: TradeAction;
   grade: SetupGrade;
   confidence: number;
@@ -74,6 +95,9 @@ export interface TradeSetup {
     orderBlocks?: string;
   };
   strategyUsed: string;
+  engineMode?: SignalEngineMode;
+  knowledgeBaseRulesApplied?: string[];
+  educationalNotesFa?: string;
   riskProfileUsed?: RiskProfileMode;
   timestamp: number;
   telegramMessage: string;
@@ -118,6 +142,7 @@ export interface BotConfig {
   baleChatId: string;
   baleEnabled: boolean;
   autoBroadcast: boolean;
+  defaultEngineMode: SignalEngineMode;
   defaultTimeframe: Timeframe;
   defaultRiskPercent: number;
   riskSettings: RiskSettings;

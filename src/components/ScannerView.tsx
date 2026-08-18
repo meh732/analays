@@ -12,6 +12,8 @@ import {
   Send,
   Award,
   Layers,
+  Clock,
+  Timer,
 } from 'lucide-react';
 
 interface ScannerViewProps {
@@ -151,6 +153,20 @@ export const ScannerView: React.FC<ScannerViewProps> = ({
                     <span className="mono-num font-bold text-indigo-400">1:{setup.riskRewardRatio}</span>
                   </div>
                 </div>
+
+                {/* Timing Tag */}
+                {setup.timing && (
+                  <div className="flex items-center justify-between gap-1 text-[11px] bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800 my-2 text-slate-300">
+                    <div className="flex items-center gap-1 text-indigo-300">
+                      <Clock className="w-3 h-3" />
+                      <span>{setup.timing.horizonLabelFa}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <Timer className="w-3 h-3 text-emerald-400" />
+                      <span>{setup.timing.estimatedHoldingTimeFa}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Short Commentary */}
                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-3">

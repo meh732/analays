@@ -375,6 +375,15 @@ export const BotSimulator: React.FC<BotSimulatorProps> = ({
             </button>
 
             <button
+              onClick={() => handleCommandClick('⏱️ تنظیم تایم و افق ورود و خروج')}
+              disabled={isLoading}
+              className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-indigo-500/40 text-indigo-300 text-xs font-bold transition-all flex items-center gap-2 shadow-sm active:scale-95 disabled:opacity-50"
+            >
+              <Activity className="w-4 h-4 text-indigo-400" />
+              <span>⏱️ افق زمانی ورود/خروج</span>
+            </button>
+
+            <button
               onClick={() => handleCommandClick('🛡️ تنظیمات سود و ریسک')}
               disabled={isLoading}
               className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 text-teal-300 text-xs font-bold transition-all flex items-center gap-2 shadow-sm active:scale-95 disabled:opacity-50"

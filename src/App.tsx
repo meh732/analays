@@ -4,6 +4,7 @@ import {
   MarketTicker,
   MarketCategory,
   Timeframe,
+  TradeTimeHorizon,
   BotConfig,
   BotMessage,
 } from './types';
@@ -36,6 +37,9 @@ import {
   SlidersHorizontal,
   ChevronDown,
   Scale,
+  Clock,
+  Timer,
+  Hourglass,
 } from 'lucide-react';
 
 const DEFAULT_TICKERS: MarketTicker[] = [
@@ -57,6 +61,8 @@ export default function App() {
   const [customSymbolInput, setCustomSymbolInput] = useState<string>('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [timeframe, setTimeframe] = useState<Timeframe>('15m');
+  const [timeHorizon, setTimeHorizon] = useState<TradeTimeHorizon>('intraday_hours');
+  const [engineMode, setEngineMode] = useState<'ONLINE_AI' | 'OFFLINE_RULES'>('ONLINE_AI');
   const [strategy, setStrategy] = useState<string>('SMC & Price Action (Smart Money Concepts)');
   const [directionPreference, setDirectionPreference] = useState<'AUTO' | 'LONG' | 'SHORT'>('AUTO');
   const [userStrategyNotes, setUserStrategyNotes] = useState<string>('');
@@ -175,9 +181,13 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Perform AI Analysis on Selected Symbol with current Risk Settings
-  const handleAnalyzeChart = useCallback(async () => {
+  // Perform Analysis on Selected Symbol with current Risk Settings & Engine Mode
+  const handleAnalyzeChart = useCallback(async (overrideMode?: 'ONLINE_AI' | 'OFFLINE_RULES') => {
     setIsAnalyzing(true);
+    const selectedMode = overrideMode || engineMode;
+    if (overrideMode) {
+      setEngineMode(overrideMode);
+    }
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -185,10 +195,12 @@ export default function App() {
         body: JSON.stringify({
           symbol: activeSymbol,
           timeframe,
+          timeHorizon,
           strategy,
           actionPreference: directionPreference,
           userNotes: userStrategyNotes,
           riskSettings: botConfig.riskSettings,
+          engineMode: selectedMode,
         }),
       });
 
@@ -197,7 +209,8 @@ export default function App() {
         setActiveSetup(data.setup);
         // Add to history automatically
         setSignalHistory((prev) => [data.setup, ...prev.slice(0, 19)]);
-        showToast('success', `ستاپ ${data.setup.action} برای ${data.setup.symbol} با موفقیت تولید شد!`);
+        const modeLabel = data.setup.engineMode === 'OFFLINE_RULES' ? 'دانش آفلاین' : 'هوش مصنوعی';
+        showToast('success', `ستاپ ${data.setup.action} (${modeLabel}) برای ${data.setup.symbol} با موفقیت تولید شد!`);
       } else {
         showToast('error', data.error || 'خطا در تحلیل چارت');
       }
@@ -206,7 +219,7 @@ export default function App() {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [activeSymbol, timeframe, strategy, directionPreference, userStrategyNotes, botConfig.riskSettings]);
+  }, [activeSymbol, timeframe, timeHorizon, strategy, directionPreference, userStrategyNotes, botConfig.riskSettings, engineMode]);
 
   // Initial auto-analysis on first load
   useEffect(() => {
@@ -798,8 +811,37 @@ export default function App() {
 
             {/* Control Bar: Symbol selector, Timeframe, Strategy & AI Generate Button */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl backdrop-blur-md flex flex-col lg:flex-row items-center justify-between gap-4">
-              {/* Symbol Search & Timeframe */}
+              {/* Symbol Search & Timeframe & Engine Mode */}
               <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                {/* Engine Mode Selector (Online AI vs Offline Knowledge) */}
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                  <button
+                    onClick={() => setEngineMode('ONLINE_AI')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                      engineMode === 'ONLINE_AI'
+                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title="تحلیل بلادرنگ هوش مصنوعی Gemini با بررسی همزمان اندیکاتورها و پرایس‌اکشن"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>🧠 هوش مصنوعی آنلاین</span>
+                  </button>
+
+                  <button
+                    onClick={() => setEngineMode('OFFLINE_RULES')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                      engineMode === 'OFFLINE_RULES'
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title="تحلیل بدون نیاز به API و بر اساس دانشنامه و قوانین پرایس‌اکشن، نقدینگی و SMC"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>📚 دانش و استراتژی آفلاین</span>
+                  </button>
+                </div>
+
                 {/* Custom Symbol Input */}
                 <form onSubmit={handleCustomSymbolSubmit} className="relative flex items-center">
                   <Search className="w-4 h-4 text-slate-400 absolute right-3 pointer-events-none" />
@@ -808,7 +850,7 @@ export default function App() {
                     placeholder="جستجوی نماد (مثلا BTC, ETH, XAU)..."
                     value={customSymbolInput}
                     onChange={(e) => setCustomSymbolInput(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 rounded-xl pr-9 pl-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-48 font-['Plus_Jakarta_Sans',sans-serif]"
+                    className="bg-slate-950 border border-slate-800 rounded-xl pr-9 pl-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-44 font-['Plus_Jakarta_Sans',sans-serif]"
                   />
                 </form>
 
@@ -856,6 +898,49 @@ export default function App() {
                     شورت (Short)
                   </button>
                 </div>
+
+                {/* Time Horizon Selector (Minutes, Hours, Days, Weeks) */}
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-indigo-900/50 text-xs shadow-inner">
+                  <div className="flex items-center gap-1 px-1.5 text-indigo-400 font-semibold text-[11px] hidden sm:flex">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>افق زمانی:</span>
+                  </div>
+                  <button
+                    onClick={() => setTimeHorizon('scalp_minutes')}
+                    className={`px-2 py-1 rounded-lg font-bold transition-all flex items-center gap-1 ${
+                      timeHorizon === 'scalp_minutes'
+                        ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title="اسکلپ سریع فیوچرز: تارگت‌های ۵ تا ۳۰ دقیقه‌ای"
+                  >
+                    <span>⚡ اسکلپ (دقیقه‌ای)</span>
+                  </button>
+
+                  <button
+                    onClick={() => setTimeHorizon('intraday_hours')}
+                    className={`px-2 py-1 rounded-lg font-bold transition-all flex items-center gap-1 ${
+                      timeHorizon === 'intraday_hours'
+                        ? 'bg-blue-500/25 text-blue-300 border border-blue-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title="معاملات درون‌روز: تارگت‌های ۱ تا ۴ ساعته"
+                  >
+                    <span>⏱️ درون‌روز (ساعتی)</span>
+                  </button>
+
+                  <button
+                    onClick={() => setTimeHorizon('swing_days')}
+                    className={`px-2 py-1 rounded-lg font-bold transition-all flex items-center gap-1 ${
+                      timeHorizon === 'swing_days'
+                        ? 'bg-purple-500/25 text-purple-300 border border-purple-500/40 shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    title="معاملات سوینگ: تارگت‌های ۱ تا ۳ روزه"
+                  >
+                    <span>📅 سوینگ (روزانه)</span>
+                  </button>
+                </div>
               </div>
 
               {/* Strategy Selector & Generate Button */}
@@ -873,12 +958,20 @@ export default function App() {
 
                 <button
                   id="generate-analysis-btn"
-                  onClick={handleAnalyzeChart}
+                  onClick={() => handleAnalyzeChart()}
                   disabled={isAnalyzing}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-emerald-950 active:scale-95 whitespace-nowrap"
+                  className={`px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-all flex items-center gap-2 shadow-lg active:scale-95 whitespace-nowrap disabled:opacity-50 ${
+                    engineMode === 'OFFLINE_RULES'
+                      ? 'bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 shadow-cyan-950'
+                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-950'
+                  }`}
                 >
                   <Sparkles className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                  {isAnalyzing ? 'در حال بررسی چارت و محاسبه نقاط...' : 'بررسی چارت و ستاپ فیوچرز'}
+                  {isAnalyzing
+                    ? 'در حال تحلیل چارت و محاسبه نقاط...'
+                    : engineMode === 'OFFLINE_RULES'
+                    ? 'تولید ستاپ با دانش آفلاین SMC'
+                    : 'بررسی چارت با هوش مصنوعی'}
                 </button>
               </div>
             </div>
@@ -888,7 +981,7 @@ export default function App() {
               <TradingViewWidget symbol={activeSymbol} timeframe={timeframe} />
             </div>
 
-            {/* Generated AI Signal Card */}
+            {/* Generated Signal Card */}
             {activeSetup ? (
               <SignalCard
                 setup={activeSetup}
@@ -903,6 +996,7 @@ export default function App() {
                   showToast('success', 'سیگنال در ژورنال ذخیره شد.');
                 }}
                 onOpenLegal={() => setIsLegalOpen(true)}
+                onReAnalyzeWithMode={(mode) => handleAnalyzeChart(mode)}
               />
             ) : (
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-3">
